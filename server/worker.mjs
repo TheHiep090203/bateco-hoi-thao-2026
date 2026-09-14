@@ -1,4 +1,4 @@
-import { allianceData, sportData, standings, validateResult, validateDraws, safeEqual, signSession, verifySession } from './domain.mjs';
+import { allianceData, sportData, standings, validateResult, validateDraws, validateBracket, safeEqual, signSession, verifySession } from './domain.mjs';
 const security={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; frame-src https://www.google.com; connect-src 'self'; base-uri 'none'; form-action 'self'"};
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{...security,'Content-Type':'application/json; charset=utf-8'}})}
 function cookie(request,name){const raw=request.headers.get('Cookie');if(!raw)return '';for(const part of raw.split(';')){const t=part.trim();if(t.startsWith(name+'='))return t.slice(name.length+1)}return ''}
@@ -6,7 +6,7 @@ function sessionCookie(url,value,maxAge){return `admin=${value}; HttpOnly; SameS
 // Fails closed: without SESSION_SECRET no cookie can ever verify.
 async function isAdmin(request,env){return verifySession(env.SESSION_SECRET,cookie(request,'admin'),Date.now())}
 async function seed(env){await env.DB.batch([...allianceData.map(a=>env.DB.prepare('INSERT OR IGNORE INTO alliances (id,name,members) VALUES (?,?,?)').bind(a.id,a.name,a.members)),...sportData.map(s=>env.DB.prepare('INSERT OR IGNORE INTO sports (id,name,discipline) VALUES (?,?,?)').bind(s.id,s.name,s.discipline))])}
-async function snapshot(env){const [a,s,r,d]=await env.DB.batch([env.DB.prepare('SELECT * FROM alliances ORDER BY id'),env.DB.prepare('SELECT * FROM sports ORDER BY id'),env.DB.prepare('SELECT id,sport_id,event,participants,score,gold,silver,bronze,revision,updated_at FROM results ORDER BY updated_at DESC,id'),env.DB.prepare('SELECT id,sport_id,ord,c1,c2,c3,c4 FROM draws ORDER BY sport_id,ord')]);return {alliances:a.results,sports:s.results,results:r.results,draws:d.results,standings:standings(a.results,r.results)}}
+async function snapshot(env){const [a,s,r,d,b]=await env.DB.batch([env.DB.prepare('SELECT * FROM alliances ORDER BY id'),env.DB.prepare('SELECT * FROM sports ORDER BY id'),env.DB.prepare('SELECT id,sport_id,event,participants,score,gold,silver,bronze,revision,updated_at FROM results ORDER BY updated_at DESC,id'),env.DB.prepare('SELECT id,sport_id,ord,c1,c2,c3,c4 FROM draws ORDER BY sport_id,ord'),env.DB.prepare('SELECT sport_id,data FROM brackets ORDER BY sport_id')]);const brackets=[];for(const row of b.results){try{brackets.push({sport_id:row.sport_id,data:JSON.parse(row.data)})}catch{console.error('Bo qua so do hong, sport_id',row.sport_id)}}return {alliances:a.results,sports:s.results,results:r.results,draws:d.results,brackets,standings:standings(a.results,r.results)}}
 export default {async fetch(request,env){const url=new URL(request.url),path=url.pathname;try{
 if(path.startsWith('/api/')){
  if(!env.DB)return json({error:'Chưa kết nối cơ sở dữ liệu. Vui lòng thử lại sau.'},503);
@@ -60,6 +60,16 @@ if(path.startsWith('/api/')){
   await seed(env);
   await env.DB.batch([env.DB.prepare('DELETE FROM draws WHERE sport_id = ?').bind(d.sport_id),...d.rows.map((row,i)=>env.DB.prepare('INSERT INTO draws (id,sport_id,ord,c1,c2,c3,c4) VALUES (?,?,?,?,?,?,?)').bind(crypto.randomUUID(),d.sport_id,i,row[0],row[1],row[2],row[3]))]);
   return json({ok:true,sport_id:d.sport_id,rows:d.rows.length});
+ }
+ if(path==='/api/admin/bracket'&&request.method==='POST'){
+  if(!await isAdmin(request,env))return json({error:'Vui lòng đăng nhập.'},401);
+  if(request.headers.get('Origin')!==url.origin||!request.headers.get('Content-Type')?.startsWith('application/json'))return json({error:'Yêu cầu không hợp lệ.'},403);
+  if(Number(request.headers.get('Content-Length'))>8000)return json({error:'Nội dung quá dài.'},413);const raw=await request.text();if(raw.length>8000)return json({error:'Nội dung quá dài.'},413);
+  let b;try{b=validateBracket(JSON.parse(raw))}catch(e){return json({error:e.message},400)}
+  // brackets.sport_id references sports(id); seed first or a fresh database rejects the insert.
+  await seed(env);
+  await env.DB.prepare('INSERT INTO brackets (sport_id,data,updated_at) VALUES (?,?,?) ON CONFLICT(sport_id) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at').bind(b.sport_id,JSON.stringify({teams:b.teams,matches:b.matches}),new Date().toISOString()).run();
+  return json({ok:true,sport_id:b.sport_id});
  }
  return json({error:'Không tìm thấy thao tác.'},404);
 }

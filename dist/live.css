@@ -18,3 +18,26 @@
    <p>, và <div> không hợp lệ bên trong <p>. margin-bottom khớp `details p`. */
 .faq-map{display:block;width:100%;aspect-ratio:16/10;border-radius:8px;overflow:hidden;margin:4px 0 22px;background:#eaf0f3}
 .faq-map iframe{display:block;width:100%;height:100%;border:0}
+
+/* Sơ đồ loại trực tiếp Pickleball. Mỗi cột và mỗi cặp đều dùng justify-content:space-around,
+   nên tâm cặp ở cột sau luôn trùng điểm giữa hai ô ở cột trước. Đường nối vì thế suy ra từ
+   layout (25%/50%/75%) chứ không đặt bằng toạ độ tuyệt đối, không lệch khi đổi cỡ màn. */
+.bracket-sheet{background:white;border:1px solid #d0dee3;border-radius:8px;margin-top:22px;overflow:hidden}
+.bracket-sheet h3{margin:0;padding:22px 24px;font-size:20px}
+.bracket-scroll{overflow-x:auto;overscroll-behavior-x:contain;padding:4px 26px 26px}
+.bracket{display:flex;gap:44px;min-width:620px;min-height:480px}
+.bracket-col{flex:1;display:flex;flex-direction:column;justify-content:space-around}
+.bracket-pair{position:relative;flex:1;display:flex;flex-direction:column;justify-content:space-around}
+.bracket-slot{position:relative;background:#f3f7f8;border:1px solid #cfdee3;border-left:3px solid #9dc0cb;border-radius:5px;padding:8px 12px;font-size:14px;font-weight:700;line-height:1.4;color:#0b2938;overflow-wrap:anywhere}
+.bracket-slot small{display:block;font-size:11px;font-weight:600;color:#60717b;letter-spacing:1px}
+.bracket-slot.is-empty{background:white;color:#7d909a;font-weight:600}
+.bracket-slot.is-winner{background:#e7f3f2;border-left-color:#007e80;color:#00575c}
+.bracket-tag{position:absolute;left:-12px;bottom:-11px;z-index:1;background:#ff762c;color:white;font-size:11px;font-weight:800;letter-spacing:1px;padding:4px 7px;border-radius:3px}
+.bracket-col:not(:last-child) .bracket-pair:after,.bracket-final .bracket-pair:after{content:'';position:absolute;right:-22px;top:25%;bottom:25%;width:22px;border:2px solid #b9d2da;border-left:0;border-radius:0 6px 6px 0}
+.bracket-col:not(:last-child) .bracket-pair:before{content:'';position:absolute;right:-44px;top:50%;width:22px;border-top:2px solid #b9d2da}
+.bracket-score{position:absolute;right:-36px;top:50%;transform:translateY(-50%);z-index:1;background:white;border:1px solid #cfdee3;border-radius:3px;padding:1px 5px;font-size:11px;font-weight:700;color:#007e80;white-space:nowrap}
+.bracket-final .bracket-score{right:auto;left:50%;transform:translate(-50%,-50%)}
+/* Form nhập sơ đồ trong modal admin */
+#entry-dialog .bracket-teams{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
+#entry-dialog #bracket-form h3{font-size:16px;margin:22px 0 12px}
+@media(max-width:650px){.bracket-sheet h3{padding:20px 16px;font-size:18px}.bracket-scroll{padding:4px 16px 20px}#entry-dialog .bracket-teams{grid-template-columns:1fr}}

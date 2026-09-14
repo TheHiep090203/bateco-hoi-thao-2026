@@ -15,7 +15,7 @@ function renderLogin(message){entryTitle.textContent='Đăng nhập để nhập
   try{await entryApi('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:form.elements.user.value,pass:form.elements.pass.value})});entryLock(false);renderStep()}
   catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Máy chủ chưa phản hồi. Vui lòng thử lại.':err.message;form.elements.pass.focus();form.elements.pass.select()}}}
 
-function renderStep(){entryKind==='draw'?renderDrawForm():renderResultForm()}
+function renderStep(){entryKind==='draw'?renderDrawForm():entryKind==='bracket'?renderBracketForm():renderResultForm()}
 
 function renderResultForm(){entryTitle.textContent='Nhập kết quả thi đấu';
  const note=entrySection==='huy-chuong'?'<p class="muted">Huy chương được cộng tự động từ kết quả thi đấu. Chọn liên minh nhận HCV/HCB/HCĐ ngay trong từng kết quả bên dưới.</p>':'';
@@ -62,7 +62,7 @@ function renderDrawForm(){entryTitle.textContent='Nhập bảng đấu';
   catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Bấm lưu lại để kiểm tra.':err.message}}}
 
 async function openEntry(button){entryTrigger=button;entryKind=button.dataset.entry;entrySection=button.dataset.section;
- document.querySelector('#entry-eyebrow').textContent=entryKind==='draw'?'BẢNG ĐẤU':'KẾT QUẢ THI ĐẤU';
+ document.querySelector('#entry-eyebrow').textContent=entryKind==='draw'?'BẢNG ĐẤU':entryKind==='bracket'?'SƠ ĐỒ LOẠI TRỰC TIẾP':'KẾT QUẢ THI ĐẤU';
  entryTitle.textContent='Đang kiểm tra phiên đăng nhập…';entryBody.innerHTML='';
  entryDialog.showModal();document.body.style.overflow='hidden';
  if(!liveData){entryBody.innerHTML='<p class="muted">Chưa tải được dữ liệu. Vui lòng đóng và thử lại.</p>';return}
@@ -72,3 +72,22 @@ document.querySelectorAll('[data-entry]').forEach(b=>b.onclick=()=>openEntry(b))
 document.querySelector('#entry-close').onclick=()=>entryDialog.close();
 entryDialog.addEventListener('cancel',e=>{if(entryBusy)e.preventDefault()});
 entryDialog.addEventListener('close',()=>{document.body.style.overflow='';entryBody.innerHTML='';if(entryTrigger?.isConnected)entryTrigger.focus()});
+
+// Form sơ đồ: chỉ nhập 08 tên đội và kết quả 07 trận. Ô BK1–BK4, NHẤT, NHÌ suy ra
+// từ đội thắng nên không có chỗ nào để nhập lệch nhau.
+function renderBracketForm(){entryTitle.textContent='Nhập sơ đồ loại trực tiếp';
+ const state=bracketData?JSON.parse(JSON.stringify(bracketData)):emptyBracket();
+ entryBody.innerHTML=`<p class="muted">Lưu sẽ thay thế toàn bộ sơ đồ loại trực tiếp của Pickleball. Đội vào vòng sau được suy ra từ đội thắng, không nhập tay.</p><div id="bracket-form"></div><div class="actions"><button class="button orange" type="button" id="bracket-save">Lưu sơ đồ</button></div><p id="entry-status" role="status"></p>`;
+ const host=entryBody.querySelector('#bracket-form'),status=entryBody.querySelector('#entry-status');
+ function draw(){const {sides}=bracketSides(state);
+  host.innerHTML=`<h3>08 suất vào tứ kết</h3><div class="bracket-teams">${state.teams.map((v,i)=>`<label>WIN ${i+1}<input data-team="${i}" maxlength="120" autocomplete="off" value="${entryEsc(v)}"></label>`).join('')}</div><h3>Kết quả từng trận</h3>`
+   +Object.keys(bracketMatchLabels).map(code=>{const m=state.matches[code],pair=sides[code],names=bracketSlotLabels[code];
+    return `<div class="admin-record"><div class="record-details"><h4>${entryEsc(bracketMatchLabels[code])}</h4><label>Tỉ số<input data-score="${code}" maxlength="40" autocomplete="off" placeholder="ví dụ 2-1" value="${entryEsc(m.score)}"></label><label>Đội thắng<select data-winner="${code}"><option value=""${m.winner?'':' selected'}>Chưa đấu</option><option value="1"${m.winner===1?' selected':''}>${entryEsc(pair[0]||names[0])}</option><option value="2"${m.winner===2?' selected':''}>${entryEsc(pair[1]||names[1])}</option></select></label></div></div>`}).join('');
+  host.querySelectorAll('[data-team]').forEach(inp=>{inp.oninput=()=>{state.teams[+inp.dataset.team]=inp.value};inp.onchange=()=>{state.teams[+inp.dataset.team]=inp.value;draw()}});
+  host.querySelectorAll('[data-score]').forEach(inp=>inp.oninput=()=>{state.matches[inp.dataset.score].score=inp.value});
+  host.querySelectorAll('[data-winner]').forEach(sel=>sel.onchange=()=>{state.matches[sel.dataset.winner].winner=sel.value?Number(sel.value):null;draw()})}
+ draw();
+ entryBody.querySelector('#bracket-save').onclick=async()=>{if(entryBusy)return;entryLock(true);status.textContent='Đang lưu…';
+  try{await entryApi('/api/admin/bracket',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sport_id:3,teams:state.teams,matches:state.matches})});await sync(true);entryLock(false);
+   Object.assign(state,bracketData?JSON.parse(JSON.stringify(bracketData)):emptyBracket());draw();status.textContent='Đã lưu sơ đồ. Trang đã cập nhật.'}
+  catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Bấm lưu lại để kiểm tra.':err.message}}}
