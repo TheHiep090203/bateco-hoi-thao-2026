@@ -2,4 +2,3 @@
 # dist/ holds the hand-authored frontend source (index.html, app.js, style.css).
 # scripts/build.mjs reads FROM dist/ and emits dist/server/index.js.
 !dist
-dist/server
