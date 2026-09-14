@@ -10,3 +10,6 @@
 #entry-dialog label{display:block;margin-bottom:14px;font-size:14px;font-weight:600}
 #entry-dialog input,#entry-dialog select,#entry-dialog textarea{display:block;width:100%;margin-top:6px;padding:10px 12px;border:1px solid var(--line);border-radius:5px;font:inherit;font-weight:400}
 #entry-dialog .admin-record h4{margin:0 0 8px;font-size:16px}
+/* Card đấu trường bấm được: .sport bị đặt cursor:default ở refinements.css */
+.sport[data-arena]{cursor:pointer;width:100%;font:inherit}
+.sport[data-arena]:hover h3{color:var(--orange)}
