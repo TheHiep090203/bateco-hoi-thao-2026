@@ -42,7 +42,24 @@ function renderResultForm(){entryTitle.textContent='Nhập kết quả thi đấ
   try{await entryApi('/api/admin/results',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});await sync();entryLock(false);fresh();renderList();status.textContent='Đã lưu. Bảng kết quả và bảng tổng sắp đã cập nhật.'}
   catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Giữ nguyên nội dung và bấm lưu lại để kiểm tra.':err.message}}}
 
-function renderDrawForm(){entryTitle.textContent='Nhập bảng đấu';entryBody.innerHTML='<p class="muted">Đang cập nhật.</p>'}
+function renderDrawForm(){entryTitle.textContent='Nhập bảng đấu';
+ const active=document.querySelector('#bang-dau [data-draw][aria-selected="true"]');
+ let sport=active?Number(active.dataset.draw):0,dirty=false;
+ entryBody.innerHTML=`<label>Môn thi đấu<select id="draw-sport">${competitionViews.map((v,i)=>`<option value="${i}">${entryEsc(v.label)}</option>`).join('')}</select></label><p class="muted">Lưu sẽ thay thế toàn bộ bảng đấu của môn này.</p><div id="draw-rows"></div><div class="actions"><button class="button" type="button" id="draw-add">Thêm dòng</button><button class="button orange" type="button" id="draw-save">Lưu bảng đấu</button></div><p id="entry-status" role="status"></p>`;
+ const select=entryBody.querySelector('#draw-sport'),host=entryBody.querySelector('#draw-rows'),status=entryBody.querySelector('#entry-status');
+ select.value=String(sport);
+ const stored=()=>(liveData.draws||[]).filter(d=>d.sport_id===sport+1).map(d=>[d.c1,d.c2,d.c3,d.c4]);
+ let rows=stored();
+ function draw(){const cols=competitionViews[sport].columns;
+  host.innerHTML=rows.length?rows.map((row,i)=>`<article class="admin-record"><div class="record-details">${cols.map((c,k)=>`<label>${entryEsc(c)}<input data-row="${i}" data-col="${k}" maxlength="200" value="${entryEsc(row[k])}"></label>`).join('')}</div><div class="record-actions"><button type="button" class="button delete-result" data-drop="${i}">Xóa dòng</button></div></article>`).join(''):'<p class="muted">Chưa có dòng nào. Bấm “Thêm dòng” để bắt đầu.</p>';
+  host.querySelectorAll('[data-row]').forEach(inp=>inp.oninput=()=>{rows[+inp.dataset.row][+inp.dataset.col]=inp.value;dirty=true});
+  host.querySelectorAll('[data-drop]').forEach(b=>b.onclick=()=>{if(entryBusy)return;rows.splice(+b.dataset.drop,1);dirty=true;draw()})}
+ draw();
+ entryBody.querySelector('#draw-add').onclick=()=>{if(entryBusy)return;rows.push(['','','','']);dirty=true;draw();host.querySelector('[data-row="'+(rows.length-1)+'"]')?.focus()};
+ select.onchange=()=>{if(dirty&&!confirm('Bỏ các thay đổi chưa lưu của môn trước?')){select.value=String(sport);return}sport=Number(select.value);rows=stored();dirty=false;status.textContent='';draw()};
+ entryBody.querySelector('#draw-save').onclick=async()=>{if(entryBusy)return;entryLock(true);status.textContent='Đang lưu…';
+  try{await entryApi('/api/admin/draws',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sport_id:sport+1,rows})});await sync();entryLock(false);rows=stored();dirty=false;draw();status.textContent='Đã lưu bảng đấu. Trang đã cập nhật.'}
+  catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Bấm lưu lại để kiểm tra.':err.message}}}
 
 async function openEntry(button){entryTrigger=button;entryKind=button.dataset.entry;entrySection=button.dataset.section;
  document.querySelector('#entry-eyebrow').textContent=entryKind==='draw'?'BẢNG ĐẤU':'KẾT QUẢ THI ĐẤU';

@@ -1,4 +1,4 @@
-import { allianceData, sportData, standings, validateResult, safeEqual, signSession, verifySession } from './domain.mjs';
+import { allianceData, sportData, standings, validateResult, validateDraws, safeEqual, signSession, verifySession } from './domain.mjs';
 const security={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'"};
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{...security,'Content-Type':'application/json; charset=utf-8'}})}
 function page(body,status=200){return new Response(body,{status,headers:{...security,'Content-Type':'text/html; charset=utf-8'}})}
@@ -8,7 +8,7 @@ function sessionCookie(url,value,maxAge){return `admin=${value}; HttpOnly; SameS
 // Fails closed: without SESSION_SECRET no cookie can ever verify.
 async function isAdmin(request,env){return verifySession(env.SESSION_SECRET,cookie(request,'admin'),Date.now())}
 async function seed(env){await env.DB.batch([...allianceData.map(a=>env.DB.prepare('INSERT OR IGNORE INTO alliances (id,name,members) VALUES (?,?,?)').bind(a.id,a.name,a.members)),...sportData.map(s=>env.DB.prepare('INSERT OR IGNORE INTO sports (id,name,discipline) VALUES (?,?,?)').bind(s.id,s.name,s.discipline))])}
-async function snapshot(env){const [a,s,r]=await env.DB.batch([env.DB.prepare('SELECT * FROM alliances ORDER BY id'),env.DB.prepare('SELECT * FROM sports ORDER BY id'),env.DB.prepare('SELECT id,sport_id,event,participants,score,gold,silver,bronze,revision,updated_at FROM results ORDER BY updated_at DESC,id')]);return {alliances:a.results,sports:s.results,results:r.results,standings:standings(a.results,r.results)}}
+async function snapshot(env){const [a,s,r,d]=await env.DB.batch([env.DB.prepare('SELECT * FROM alliances ORDER BY id'),env.DB.prepare('SELECT * FROM sports ORDER BY id'),env.DB.prepare('SELECT id,sport_id,event,participants,score,gold,silver,bronze,revision,updated_at FROM results ORDER BY updated_at DESC,id'),env.DB.prepare('SELECT id,sport_id,ord,c1,c2,c3,c4 FROM draws ORDER BY sport_id,ord')]);return {alliances:a.results,sports:s.results,results:r.results,draws:d.results,standings:standings(a.results,r.results)}}
 export default {async fetch(request,env){const url=new URL(request.url),path=url.pathname;try{
 if(path.startsWith('/api/')){
  if(!env.DB)return json({error:'Chưa kết nối cơ sở dữ liệu. Vui lòng thử lại sau.'},503);
@@ -48,6 +48,16 @@ if(path.startsWith('/api/')){
   const now=new Date().toISOString(),uid='admin';let saved;
   try{saved=previous?await env.DB.prepare('UPDATE results SET sport_id=?,event=?,participants=?,score=?,gold=?,silver=?,bronze=?,updated_at=?,updated_by=?,revision=revision+1 WHERE id=? AND revision=?').bind(r.sport_id,r.event,r.participants,r.score,r.gold,r.silver,r.bronze,now,uid,r.id,r.revision).run():await env.DB.prepare('INSERT INTO results (id,sport_id,event,participants,score,gold,silver,bronze,revision,updated_at,updated_by) VALUES (?,?,?,?,?,?,?,?,1,?,?)').bind(r.id,r.sport_id,r.event,r.participants,r.score,r.gold,r.silver,r.bronze,now,uid).run()}catch(e){if(String(e).includes('UNIQUE'))return json({error:'Trận/Phần thi này đã tồn tại. Hãy chọn Sửa kết quả trong danh sách.'},409);throw e}
   if(!saved.meta.changes)return json({error:'Kết quả vừa được sửa ở nơi khác. Hãy tải lại danh sách.'},409);return json({ok:true,id:r.id,revision:r.revision+1});
+ }
+ if(path==='/api/admin/draws'&&request.method==='POST'){
+  if(!await isAdmin(request,env))return json({error:'Vui lòng đăng nhập.'},401);
+  if(request.headers.get('Origin')!==url.origin||!request.headers.get('Content-Type')?.startsWith('application/json'))return json({error:'Yêu cầu không hợp lệ.'},403);
+  if(Number(request.headers.get('Content-Length'))>24000)return json({error:'Nội dung quá dài.'},413);const raw=await request.text();if(raw.length>24000)return json({error:'Nội dung quá dài.'},413);
+  let d;try{d=validateDraws(JSON.parse(raw))}catch(e){return json({error:e.message},400)}
+  // draws.sport_id references sports(id); seed first or a fresh database rejects the insert.
+  await seed(env);
+  await env.DB.batch([env.DB.prepare('DELETE FROM draws WHERE sport_id = ?').bind(d.sport_id),...d.rows.map((row,i)=>env.DB.prepare('INSERT INTO draws (id,sport_id,ord,c1,c2,c3,c4) VALUES (?,?,?,?,?,?,?)').bind(crypto.randomUUID(),d.sport_id,i,row[0],row[1],row[2],row[3]))]);
+  return json({ok:true,sport_id:d.sport_id,rows:d.rows.length});
  }
  return json({error:'Không tìm thấy thao tác.'},404);
 }

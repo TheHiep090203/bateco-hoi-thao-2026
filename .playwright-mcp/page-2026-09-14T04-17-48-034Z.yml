@@ -1,0 +1,289 @@
+- generic [active] [ref=f4e1]:
+  - banner [ref=f4e2]:
+    - link "BATECO GROUP HỘI THAO 2026" [ref=f4e3] [cursor=pointer]:
+      - /url: "#"
+      - img "BATECO GROUP" [ref=f4e4]
+      - generic [ref=f4e5]: HỘI THAO 2026
+    - navigation "Điều hướng chính" [ref=f4e6]:
+      - link "Liên minh" [ref=f4e7] [cursor=pointer]:
+        - /url: "#lien-minh"
+      - link "Đấu trường" [ref=f4e8] [cursor=pointer]:
+        - /url: "#dau-truong"
+      - link "Bảng đấu" [ref=f4e9] [cursor=pointer]:
+        - /url: "#bang-dau"
+      - link "Lịch thi đấu" [ref=f4e10] [cursor=pointer]:
+        - /url: "#lich-trinh"
+      - link "Huy chương" [ref=f4e11] [cursor=pointer]:
+        - /url: "#huy-chuong"
+      - link "Kết quả" [ref=f4e12] [cursor=pointer]:
+        - /url: "#ket-qua"
+      - link "Luật Thi Đấu" [ref=f4e13] [cursor=pointer]:
+        - /url: "#luat-thi-dau"
+      - link "FAQ" [ref=f4e14] [cursor=pointer]:
+        - /url: "#faq"
+  - main [ref=f4e15]:
+    - generic [ref=f4e16]:
+      - generic [ref=f4e17]:
+        - generic [ref=f4e18]:
+          - paragraph [ref=f4e19]: BATECO GROUP / 18.09.2026
+          - heading [level=1] [ref=f4e20]:
+            - text: HỘI THAOBATECO
+            - emphasis [ref=f4e21]: "2026"
+          - paragraph [ref=f4e22]: CHÀO MỪNG 14 NĂM THÀNH LẬP TẬP ĐOÀN
+          - generic [ref=f4e23]:
+            - link "Xem lịch thi đấu ↗" [ref=f4e24] [cursor=pointer]:
+              - /url: "#lich-trinh"
+              - text: Xem lịch thi đấu
+              - generic [ref=f4e25]: ↗
+            - link "Khám phá 5 đấu trường ↓" [ref=f4e26] [cursor=pointer]:
+              - /url: "#dau-truong"
+              - text: Khám phá 5 đấu trường
+              - generic [ref=f4e27]: ↓
+        - complementary [ref=f4e28]:
+          - paragraph [ref=f4e29]: NGÀY HỘI THAO
+          - generic [ref=f4e30]: "18.09"
+          - generic [ref=f4e31]:
+            - text: "2026"
+            - generic [ref=f4e32]: HỘI THAO BATECO
+          - generic [ref=f4e33]: ĐẾM NGƯỢC ĐẾN NGÀY HỘI THAO
+          - generic [ref=f4e34]:
+            - generic [ref=f4e35]:
+              - generic [ref=f4e36]: "03"
+              - text: Ngày
+            - generic [ref=f4e37]:
+              - generic [ref=f4e38]: "12"
+              - text: Giờ
+            - generic [ref=f4e39]:
+              - generic [ref=f4e40]: "42"
+              - text: Phút
+            - generic [ref=f4e41]:
+              - generic [ref=f4e42]: "12"
+              - text: Giây
+      - generic [ref=f4e43]:
+        - generic [ref=f4e44]: 03 LIÊN MINH
+        - generic [ref=f4e45]: 05 ĐẤU TRƯỜNG
+        - generic [ref=f4e46]: CHÀO MỪNG 14 NĂM THÀNH LẬP TẬP ĐOÀN
+    - generic [ref=f4e47]:
+      - generic [ref=f4e48]:
+        - heading "03 Liên minh" [level=2] [ref=f4e51]
+        - generic [ref=f4e52]:
+          - article [ref=f4e53]:
+            - generic [aria-hidden] [ref=f4e54]: ➤
+            - generic [ref=f4e55]: LIÊN MINH
+            - heading "TIÊN PHONG" [level=3] [ref=f4e56]
+          - article [ref=f4e57]:
+            - generic [aria-hidden] [ref=f4e58]: ϟ
+            - generic [ref=f4e59]: LIÊN MINH
+            - heading "BỨT PHÁ" [level=3] [ref=f4e60]
+          - article [ref=f4e61]:
+            - generic [aria-hidden] [ref=f4e62]: ★
+            - generic [ref=f4e63]: LIÊN MINH
+            - heading "CHINH PHỤC" [level=3] [ref=f4e64]
+      - generic [ref=f4e66]:
+        - heading "05 Đấu trường" [level=2] [ref=f4e69]
+        - generic [ref=f4e70]:
+          - article [ref=f4e71]:
+            - heading "ĐẤU TRƯỜNG ĐOÀN KẾT" [level=3] [ref=f4e72]
+            - paragraph [ref=f4e73]: Kéo co 10 vs 10
+          - article [ref=f4e74]:
+            - heading "ĐẤU TRƯỜNG TỐC ĐỘ" [level=3] [ref=f4e75]
+            - paragraph [ref=f4e76]: Điền kinh
+          - article [ref=f4e77]:
+            - heading "ĐẤU TRƯỜNG PHỐI HỢP" [level=3] [ref=f4e78]
+            - paragraph [ref=f4e79]: Pickleball
+          - article [ref=f4e80]:
+            - heading "ĐẤU TRƯỜNG CHIẾN THUẬT" [level=3] [ref=f4e81]
+            - paragraph [ref=f4e82]: AOE 4 vs 4
+          - article [ref=f4e83]:
+            - heading "ĐẤU TRƯỜNG RỰC LỬA" [level=3] [ref=f4e84]
+            - paragraph [ref=f4e85]: Giải bóng đá Nam – BATECO CUP
+      - generic [ref=f4e86]:
+        - generic [ref=f4e87]:
+          - heading "BẢNG ĐẤU" [level=2] [ref=f4e89]
+          - button "Nhập kết quả" [ref=f4e90] [cursor=pointer]
+        - tablist "Bảng đấu" [ref=f4e91]:
+          - tab "Kéo co" [selected] [ref=f4e92] [cursor=pointer]
+          - tab "Điền kinh" [ref=f4e93] [cursor=pointer]
+          - tab "Pickleball" [ref=f4e94] [cursor=pointer]
+          - tab "AOE" [ref=f4e95] [cursor=pointer]
+          - tab "Bóng đá Nam – BATECO CUP" [ref=f4e96] [cursor=pointer]
+        - tabpanel "Kéo co" [ref=f4e97]:
+          - generic [ref=f4e98]:
+            - heading "Kéo co" [level=3] [ref=f4e99]
+            - generic [ref=f4e100]:
+              - generic [ref=f4e101]: Bảng / Vòng
+              - generic [ref=f4e102]: Cặp đấu
+              - generic [ref=f4e103]: Lượt thi đấu
+              - generic [ref=f4e104]: Lịch thi đấu
+            - generic [ref=f4e106]:
+              - generic [ref=f4e107]: Bảng A
+              - generic [ref=f4e108]: <script>alert(1)</script>
+              - generic [ref=f4e109]: Lượt 1
+              - generic [ref=f4e110]: 08:15 – 08:25
+      - generic [ref=f4e111]:
+        - generic [ref=f4e112]:
+          - generic [ref=f4e114]:
+            - paragraph [ref=f4e115]: MỘT NGÀY KẾT ĐOÀN
+            - heading "Lịch trình ngày hội thao" [level=2] [ref=f4e116]: Lịch trìnhngày hội thao
+          - generic [ref=f4e117]: 18 / 09 / 2026
+          - paragraph [ref=f4e118]: Từ tập trung đến tiệc kết đoàn.
+        - list [ref=f4e119]:
+          - listitem [ref=f4e120]:
+            - time [ref=f4e122]: 07:30 – 08:00
+            - strong [ref=f4e123]: Tập trung
+          - listitem [ref=f4e124]:
+            - time [ref=f4e126]: 08:00 – 08:10
+            - strong [ref=f4e127]: Khai mạc
+          - listitem [ref=f4e128]:
+            - time [ref=f4e130]: 08:10 – 08:15
+            - strong [ref=f4e131]: Warm-up
+          - listitem [ref=f4e132]:
+            - time [ref=f4e134]: 08:15 – 08:40
+            - strong [ref=f4e135]: Kéo co
+          - listitem [ref=f4e136]:
+            - time [ref=f4e138]: 08:40 – 08:45
+            - strong [ref=f4e139]: Công bố kết quả
+          - listitem [ref=f4e140]:
+            - time [ref=f4e142]: 08:45 – 10:00
+            - strong [ref=f4e143]: Điền kinh
+          - listitem [ref=f4e144]:
+            - time [ref=f4e146]: 10:00 – 12:00
+            - strong [ref=f4e147]: Pickleball & Esport
+          - listitem [ref=f4e148]:
+            - time [ref=f4e150]: 14:00 – 17:30
+            - strong [ref=f4e151]: Bóng đá Nam – BATECO CUP
+            - generic [ref=f4e152]: BATECO CUP
+          - listitem [ref=f4e153]:
+            - time [ref=f4e155]: 18:00
+            - strong [ref=f4e156]: Tiệc kết đoàn
+      - generic [ref=f4e158]:
+        - generic [ref=f4e159]:
+          - generic [ref=f4e160]:
+            - paragraph [ref=f4e161]: DẤU ẤN LIÊN MINH
+            - heading "Bảng tổng sắp huy chương" [level=2] [ref=f4e162]
+          - generic [ref=f4e163]: Tự động tính từ kết quả thi đấu
+          - button "Nhập kết quả" [ref=f4e164] [cursor=pointer]
+        - table [ref=f4e166]:
+          - rowgroup [ref=f4e167]:
+            - row [ref=f4e168]:
+              - columnheader "Liên minh" [ref=f4e169]
+              - columnheader "HCV" [ref=f4e170]
+              - columnheader "HCB" [ref=f4e172]
+              - columnheader "HCĐ" [ref=f4e174]
+              - columnheader "Xếp hạng" [ref=f4e176]
+          - rowgroup [ref=f4e177]:
+            - row [ref=f4e178]:
+              - rowheader "LIÊN MINH TIÊN PHONG" [ref=f4e179]
+              - cell "1" [ref=f4e181]
+              - cell "1" [ref=f4e182]
+              - cell "0" [ref=f4e183]
+              - cell "1" [ref=f4e184]
+            - row [ref=f4e185]:
+              - rowheader "LIÊN MINH CHINH PHỤC" [ref=f4e186]
+              - cell "1" [ref=f4e188]
+              - cell "0" [ref=f4e189]
+              - cell "1" [ref=f4e190]
+              - cell "2" [ref=f4e191]
+            - row [ref=f4e192]:
+              - rowheader "LIÊN MINH BỨT PHÁ" [ref=f4e193]
+              - cell "0" [ref=f4e195]
+              - cell "1" [ref=f4e196]
+              - cell "0" [ref=f4e197]
+              - cell "3" [ref=f4e198]
+        - paragraph [ref=f4e199]:
+          - text: "Ưu tiên xếp hạng:"
+          - strong [ref=f4e200]: HCV → HCB → HCĐ.
+          - text: Nếu bằng HCV, xét HCB, sau đó HCĐ.
+      - generic [ref=f4e201]:
+        - generic [ref=f4e202]:
+          - generic [ref=f4e203]:
+            - paragraph [ref=f4e204]: THEO DÕI CÁC PHẦN THI
+            - heading "Kết quả thi đấu" [level=2] [ref=f4e205]
+          - button "Nhập kết quả" [ref=f4e206] [cursor=pointer]
+        - status [ref=f4e207]: Đang cập nhật tự động · 11:17:47
+        - tablist "Môn thi đấu" [ref=f4e208]:
+          - tab "Kéo co 10 vs 10" [selected] [ref=f4e209] [cursor=pointer]
+          - tab "Điền kinh" [ref=f4e210] [cursor=pointer]
+          - tab "Pickleball" [ref=f4e211] [cursor=pointer]
+          - tab "AOE" [ref=f4e212] [cursor=pointer]
+          - tab "Bóng đá Nam" [ref=f4e213] [cursor=pointer]
+        - tabpanel "Kéo co 10 vs 10" [ref=f4e214]:
+          - table [ref=f4e216]:
+            - rowgroup [ref=f4e217]:
+              - row [ref=f4e218]:
+                - columnheader "Trận/Phần thi" [ref=f4e219]
+                - columnheader "Đội/VĐV" [ref=f4e220]
+                - columnheader "Kết quả" [ref=f4e221]
+                - columnheader "Huy chương" [ref=f4e222]
+            - rowgroup [ref=f4e223]:
+              - row [ref=f4e224]:
+                - rowheader "Tien Phong vs But Pha" [ref=f4e225]
+                - cell "Doi A - Doi B" [ref=f4e226]
+                - cell "2-1" [ref=f4e227]
+                - cell [ref=f4e228]:
+                  - generic [ref=f4e229]: HCV · TIÊN PHONG
+                  - generic [ref=f4e231]: HCB · BỨT PHÁ
+                  - generic [ref=f4e233]: HCĐ · CHINH PHỤC
+      - generic [ref=f4e236]:
+        - heading "Luật Thi Đấu" [level=2] [ref=f4e239]
+        - tablist "Luật thi đấu" [ref=f4e240]:
+          - tab "Kéo co" [selected] [ref=f4e241] [cursor=pointer]
+          - tab "Điền kinh" [ref=f4e242] [cursor=pointer]
+          - tab "Pickleball" [ref=f4e243] [cursor=pointer]
+          - tab "AOE" [ref=f4e244] [cursor=pointer]
+          - tab "Bóng đá Nam – BATECO CUP" [ref=f4e245] [cursor=pointer]
+        - tabpanel "Kéo co" [ref=f4e246]:
+          - article [ref=f4e247]:
+            - generic [ref=f4e248]:
+              - generic [aria-hidden] [ref=f4e249]: ↔
+              - heading "Kéo co" [level=3] [ref=f4e250]
+            - generic [ref=f4e251]:
+              - generic [ref=f4e252]:
+                - term [ref=f4e253]: Thành phần thi đấu
+                - definition [ref=f4e254]: "Mỗi Liên minh 01 đội: 10 VĐV gồm 05 nam, 05 nữ."
+              - generic [ref=f4e255]:
+                - term [ref=f4e256]: Thể thức chính
+                - definition [ref=f4e257]: 03 Liên minh vòng tròn một lượt; mỗi đội 02 trận, mỗi trận 01 hiệp quyết định, không giới hạn thời gian.
+              - generic [ref=f4e258]:
+                - term [ref=f4e259]: Cách tính thắng / xếp hạng
+                - definition [ref=f4e260]: "Kéo dấu mốc quy định trên dây đối phương qua vạch trung tâm để thắng. Thắng 01 điểm, thua 0. Nếu cả ba đội bằng điểm: xét thời gian thắng ngắn hơn; hai đội bằng thời gian: xét đối đầu."
+            - generic [ref=f4e261]:
+              - heading "Lưu ý quan trọng" [level=4] [ref=f4e262]
+              - list [ref=f4e263]:
+                - listitem [ref=f4e264]: Không thay người trong trận; đội hình luôn đủ 05 nam và 05 nữ.
+                - listitem [ref=f4e265]: Không quấn hoặc khóa dây vào cơ thể; không buông dây đột ngột.
+                - listitem [ref=f4e266]: "Có tác động ngoại lực ngoài 10 VĐV đăng ký nhằm hỗ trợ kéo: xử thua trực tiếp."
+            - group [ref=f4e267]:
+              - generic "XEM LUẬT CHI TIẾT" [ref=f4e268] [cursor=pointer]:
+                - text: XEM LUẬT CHI TIẾT
+                - generic [aria-hidden] [ref=f4e269]: +
+      - generic [ref=f4e271]:
+        - generic [ref=f4e274]:
+          - paragraph [ref=f4e275]: GIẢI ĐÁP NHANH
+          - heading "Câu hỏi thường gặp" [level=2] [ref=f4e276]
+        - generic [ref=f4e277]:
+          - group [ref=f4e278]:
+            - generic "Hội thao diễn ra khi nào?" [ref=f4e279] [cursor=pointer]:
+              - text: Hội thao diễn ra khi nào?
+              - generic [aria-hidden] [ref=f4e280]: +
+          - group [ref=f4e281]:
+            - generic "Địa điểm tổ chức ở đâu?" [ref=f4e282] [cursor=pointer]:
+              - text: Địa điểm tổ chức ở đâu?
+              - generic [aria-hidden] [ref=f4e283]: +
+          - group [ref=f4e284]:
+            - generic "Thể thức thi đấu của từng môn như thế nào?" [ref=f4e285] [cursor=pointer]:
+              - text: Thể thức thi đấu của từng môn như thế nào?
+              - generic [aria-hidden] [ref=f4e286]: +
+          - group [ref=f4e287]:
+            - generic "Huy chương được tính và xếp hạng như thế nào?" [ref=f4e288] [cursor=pointer]:
+              - text: Huy chương được tính và xếp hạng như thế nào?
+              - generic [aria-hidden] [ref=f4e289]: +
+          - group [ref=f4e290]:
+            - generic "Tôi xem lịch thi đấu ở đâu?" [ref=f4e291] [cursor=pointer]:
+              - text: Tôi xem lịch thi đấu ở đâu?
+              - generic [aria-hidden] [ref=f4e292]: +
+  - contentinfo [ref=f4e293]:
+    - strong [ref=f4e294]: BATECO GROUP
+    - generic [ref=f4e295]: HỘI THAO BATECO 2026
+    - link "Về đầu trang ↑" [ref=f4e296] [cursor=pointer]:
+      - /url: "#"

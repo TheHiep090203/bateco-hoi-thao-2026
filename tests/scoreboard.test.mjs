@@ -1,5 +1,5 @@
-import {test} from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync} from 'node:sqlite';import fs from 'node:fs';import worker from '../dist/server/index.js';import {standings,allianceData,validateResult,safeEqual,signSession} from '../server/domain.mjs';
-function database(){const db=new DatabaseSync(':memory:');db.exec(fs.readFileSync('drizzle/0000_charming_sinister_six.sql','utf8'));const binding={prepare(sql){return {args:[],bind(...args){this.args=args;return this},async first(){return db.prepare(sql).get(...this.args)||null},async run(){const r=db.prepare(sql).run(...this.args);return {success:true,meta:{changes:r.changes}}},async all(){return {results:db.prepare(sql).all(...this.args)}}}},async batch(statements){db.exec('BEGIN');try{const r=[];for(const s of statements){try{r.push(await s.all())}catch{r.push(await s.run())}}db.exec('COMMIT');return r}catch(e){db.exec('ROLLBACK');throw e}}};return {db,binding}}
+import {test} from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync} from 'node:sqlite';import fs from 'node:fs';import worker from '../dist/server/index.js';import {standings,allianceData,validateResult,validateDraws,safeEqual,signSession} from '../server/domain.mjs';
+function database(){const db=new DatabaseSync(':memory:');for(const f of fs.readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(fs.readFileSync('drizzle/'+f,'utf8'));const binding={prepare(sql){return {args:[],bind(...args){this.args=args;return this},async first(){return db.prepare(sql).get(...this.args)||null},async run(){const r=db.prepare(sql).run(...this.args);return {success:true,meta:{changes:r.changes}}},async all(){return {results:db.prepare(sql).all(...this.args)}}}},async batch(statements){db.exec('BEGIN');try{const r=[];for(const s of statements){try{r.push(await s.all())}catch{r.push(await s.run())}}db.exec('COMMIT');return r}catch(e){db.exec('ROLLBACK');throw e}}};return {db,binding}}
 const origin='https://scoreboard.test';const SECRET='test-session-secret';
 const creds={ADMIN_USER:'bateco',ADMIN_PASS:'123',SESSION_SECRET:SECRET};
 const admin={Cookie:'admin='+await signSession(SECRET,Date.now()+3600000)};
@@ -34,3 +34,34 @@ test('Session cookies are rejected when expired, resigned or malformed',async()=
  // Missing secret must fail closed, never open.
  assert.equal((await call({DB:binding},'/api/admin/session','GET',undefined,admin)).status,401);db.close()});
 test('safeEqual compares without leaking length or position',()=>{assert.equal(safeEqual('abc','abc'),true);assert.equal(safeEqual('abc','abd'),false);assert.equal(safeEqual('abc','abcd'),false);assert.equal(safeEqual('',''),true);assert.equal(safeEqual(undefined,'x'),false);assert.equal(safeEqual(null,null),true)});
+test('Draw validation rejects bad sport, wrong column count, oversized cells and drops blank rows',()=>{
+ assert.throws(()=>validateDraws({sport_id:6,rows:[]}));
+ assert.throws(()=>validateDraws({sport_id:1,rows:[['a','b','c']]}));
+ assert.throws(()=>validateDraws({sport_id:1,rows:[['a','b','c','d','e']]}));
+ assert.throws(()=>validateDraws({sport_id:1,rows:[['x'.repeat(201),'','','']]}));
+ assert.throws(()=>validateDraws({sport_id:1,rows:Array.from({length:61},()=>['a','','',''])}));
+ assert.throws(()=>validateDraws({sport_id:1,rows:[[1,2,3,4]]}));
+ assert.deepEqual(validateDraws({sport_id:1,rows:[['  A  ','B','',''],['','','','']]}).rows,[['A','B','','']]);
+ assert.deepEqual(validateDraws({sport_id:2,rows:[]}),{sport_id:2,rows:[]})});
+test('Draws require a session, replace the whole set per sport and leave other sports intact',async()=>{const {db,binding}=database();const env={DB:binding,...creds};
+ const body={sport_id:1,rows:[['Bảng A','TP vs BP','Lượt 1','08:15']]};
+ assert.equal((await call(env,'/api/admin/draws','POST',body)).status,401);
+ assert.equal((await call(env,'/api/admin/draws','POST',body,{...admin,Origin:'https://other.test'})).status,403);
+ assert.equal((await call(env,'/api/admin/draws','POST',{sport_id:9,rows:[]},admin)).status,400);
+ // Writing on a database that has never been seeded must still satisfy the sports foreign key.
+ assert.equal((await call(env,'/api/admin/draws','POST',{sport_id:1,rows:[['a','b','c','d'],['e','f','g','h'],['i','j','k','l']]},admin)).status,200);
+ assert.equal((await call(env,'/api/admin/draws','POST',{sport_id:2,rows:[['Nữ 1.500m','Lan','Lượt 1','09:00']]},admin)).status,200);
+ let snap=await (await call(env,'/api/scoreboard')).json();
+ assert.equal(snap.draws.filter(d=>d.sport_id===1).length,3);
+ assert.equal(snap.draws.filter(d=>d.sport_id===2).length,1);
+ assert.deepEqual(snap.draws.filter(d=>d.sport_id===1).map(d=>d.ord),[0,1,2]);
+ // Replacing sport 1 must not touch sport 2.
+ assert.equal((await call(env,'/api/admin/draws','POST',{sport_id:1,rows:[['chi','con','mot','dong']]},admin)).status,200);
+ snap=await (await call(env,'/api/scoreboard')).json();
+ assert.equal(snap.draws.filter(d=>d.sport_id===1).length,1);
+ assert.equal(snap.draws.filter(d=>d.sport_id===2).length,1);
+ // Empty rows clears just that sport.
+ assert.equal((await call(env,'/api/admin/draws','POST',{sport_id:1,rows:[]},admin)).status,200);
+ snap=await (await call(env,'/api/scoreboard')).json();
+ assert.equal(snap.draws.filter(d=>d.sport_id===1).length,0);
+ assert.equal(snap.draws.filter(d=>d.sport_id===2).length,1);db.close()});
