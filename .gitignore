@@ -24,3 +24,6 @@ local.db*
 .vercel/
 .vercel
 .env*
+
+# Bo nho lam viec cua subagent, khong thuoc ve repo
+.claude/agent-memory/
