@@ -2,12 +2,12 @@
 // chưa có phiên hợp lệ; form nhập liệu đổi theo section đã mở modal.
 const ENTRY_MEDALS={gold:'HCV',silver:'HCB',bronze:'HCĐ'};
 const entryEsc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-document.body.insertAdjacentHTML('beforeend','<dialog id="entry-dialog" aria-labelledby="entry-title"><div class="dialog-header"><p class="eyebrow" id="entry-eyebrow">NHẬP KẾT QUẢ</p><button type="button" class="close" id="entry-close" aria-label="Đóng">×</button></div><h2 id="entry-title">Nhập kết quả</h2><div id="entry-body"></div></dialog>');
+document.body.insertAdjacentHTML('beforeend','<dialog id="entry-dialog" class="admin-shell" aria-labelledby="entry-title"><div class="dialog-header"><p class="eyebrow" id="entry-eyebrow">NHẬP KẾT QUẢ</p><button type="button" class="close" id="entry-close" aria-label="Đóng">×</button></div><h2 id="entry-title">Nhập kết quả</h2><div id="entry-body"></div></dialog>');
 const entryDialog=document.querySelector('#entry-dialog'),entryBody=document.querySelector('#entry-body'),entryTitle=document.querySelector('#entry-title');
 let entryTrigger=null,entryKind='result',entrySection='',entryBusy=false;
 
 async function entryApi(path,options){const response=await fetch(path,{cache:'no-store',...options,signal:AbortSignal.timeout(15000)});let value;try{value=await response.json()}catch{throw Error('Không tải được dữ liệu. Vui lòng thử lại.')}if(!response.ok)throw Error(value.error||'Không thể xử lý yêu cầu.');return value}
-function entryLock(on){entryBusy=on;entryBody.querySelectorAll('input,select,textarea,button').forEach(c=>c.disabled=on)}
+function entryLock(on){entryBusy=on;document.querySelector('#entry-close').disabled=on;entryBody.querySelectorAll('input,select,textarea,button').forEach(c=>c.disabled=on)}
 
 function renderLogin(message){entryTitle.textContent='Đăng nhập để nhập kết quả';
  entryBody.innerHTML=`<form id="entry-login"><label>Tài khoản<input name="user" autocomplete="username" required autofocus></label><label>Mật khẩu<input name="pass" type="password" autocomplete="current-password" required></label><p id="entry-login-status" role="status">${entryEsc(message||'')}</p><div class="actions"><button class="button orange" type="submit">Đăng nhập</button></div></form>`;
@@ -31,7 +31,7 @@ function renderResultForm(){entryTitle.textContent='Nhập kết quả thi đấ
  function renderList(){const rows=liveData.results;entryBody.querySelector('#entry-list').innerHTML=rows.length?rows.map(r=>{const sport=liveData.sports.find(s=>s.id===r.sport_id);return `<article class="admin-record"><div class="record-details"><h4>${entryEsc(r.event)}</h4><dl><dt>Môn thi đấu</dt><dd>${entryEsc(sport?.name)} – ${entryEsc(sport?.discipline)}</dd><dt>Đội/VĐV</dt><dd>${entryEsc(r.participants)}</dd><dt>Kết quả</dt><dd>${entryEsc(r.score)}</dd>${['gold','silver','bronze'].map(m=>`<dt>${ENTRY_MEDALS[m]}</dt><dd>${r[m]?entryEsc(liveData.alliances.find(a=>a.id===r[m])?.name):'Chưa trao'}</dd>`).join('')}</dl></div><div class="record-actions"><button type="button" class="button" data-entry-edit="${entryEsc(r.id)}">Sửa</button><button type="button" class="button delete-result" data-entry-del="${entryEsc(r.id)}">Xóa</button></div></article>`}).join(''):'<p class="muted">Chưa có kết quả nào được nhập.</p>';
   entryBody.querySelectorAll('[data-entry-edit]').forEach(b=>b.onclick=()=>{if(entryBusy)return;const r=liveData.results.find(r=>r.id===b.dataset.entryEdit);recordId=r.id;revision=r.revision;for(const k of ['sport_id','event','participants','score','gold','silver','bronze'])form.elements[k].value=r[k]??'';entryBody.querySelector('#entry-save').textContent='Cập nhật kết quả';entryBody.querySelector('#entry-status').textContent='Đang sửa kết quả đã lưu. Huy chương cũ sẽ được thay bằng lựa chọn mới.';form.elements.event.focus()});
   entryBody.querySelectorAll('[data-entry-del]').forEach(b=>b.onclick=async()=>{if(entryBusy)return;const r=liveData.results.find(r=>r.id===b.dataset.entryDel);if(!confirm(`Xóa kết quả “${r.event}”? Huy chương của kết quả này sẽ bị loại khỏi bảng tổng sắp. Thao tác không thể hoàn tác.`))return;const status=entryBody.querySelector('#entry-status');entryLock(true);status.textContent='Đang xóa…';
-   try{await entryApi('/api/admin/results',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:r.id,revision:r.revision})});await sync();entryLock(false);if(recordId===r.id)fresh();renderList();status.textContent='Đã xóa kết quả. Bảng tổng sắp đã được tính lại.'}
+   try{await entryApi('/api/admin/results',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:r.id,revision:r.revision})});await sync(true);entryLock(false);if(recordId===r.id)fresh();renderList();status.textContent='Đã xóa kết quả. Bảng tổng sắp đã được tính lại.'}
    catch(err){entryLock(false);status.textContent=err.message}})}
  renderList();
  form.onsubmit=async e=>{e.preventDefault();if(entryBusy||!form.reportValidity())return;const status=entryBody.querySelector('#entry-status');
@@ -39,7 +39,7 @@ function renderResultForm(){entryTitle.textContent='Nhập kết quả thi đấ
   for(const k of ['event','participants','score'])payload[k]=form.elements[k].value;
   for(const k of ['gold','silver','bronze'])payload[k]=form.elements[k].value?Number(form.elements[k].value):null;
   entryLock(true);status.textContent='Đang lưu…';
-  try{await entryApi('/api/admin/results',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});await sync();entryLock(false);fresh();renderList();status.textContent='Đã lưu. Bảng kết quả và bảng tổng sắp đã cập nhật.'}
+  try{await entryApi('/api/admin/results',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});await sync(true);entryLock(false);fresh();renderList();status.textContent='Đã lưu. Bảng kết quả và bảng tổng sắp đã cập nhật.'}
   catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Giữ nguyên nội dung và bấm lưu lại để kiểm tra.':err.message}}}
 
 function renderDrawForm(){entryTitle.textContent='Nhập bảng đấu';
@@ -58,7 +58,7 @@ function renderDrawForm(){entryTitle.textContent='Nhập bảng đấu';
  entryBody.querySelector('#draw-add').onclick=()=>{if(entryBusy)return;rows.push(['','','','']);dirty=true;draw();host.querySelector('[data-row="'+(rows.length-1)+'"]')?.focus()};
  select.onchange=()=>{if(dirty&&!confirm('Bỏ các thay đổi chưa lưu của môn trước?')){select.value=String(sport);return}sport=Number(select.value);rows=stored();dirty=false;status.textContent='';draw()};
  entryBody.querySelector('#draw-save').onclick=async()=>{if(entryBusy)return;entryLock(true);status.textContent='Đang lưu…';
-  try{await entryApi('/api/admin/draws',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sport_id:sport+1,rows})});await sync();entryLock(false);rows=stored();dirty=false;draw();status.textContent='Đã lưu bảng đấu. Trang đã cập nhật.'}
+  try{await entryApi('/api/admin/draws',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sport_id:sport+1,rows})});await sync(true);entryLock(false);rows=stored();dirty=false;draw();status.textContent='Đã lưu bảng đấu. Trang đã cập nhật.'}
   catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Bấm lưu lại để kiểm tra.':err.message}}}
 
 async function openEntry(button){entryTrigger=button;entryKind=button.dataset.entry;entrySection=button.dataset.section;
@@ -66,7 +66,7 @@ async function openEntry(button){entryTrigger=button;entryKind=button.dataset.en
  entryTitle.textContent='Đang kiểm tra phiên đăng nhập…';entryBody.innerHTML='';
  entryDialog.showModal();document.body.style.overflow='hidden';
  if(!liveData){entryBody.innerHTML='<p class="muted">Chưa tải được dữ liệu. Vui lòng đóng và thử lại.</p>';return}
- try{await entryApi('/api/admin/session');renderStep()}catch{renderLogin('')}}
+ try{await entryApi('/api/admin/session');renderStep()}catch(err){renderLogin(err.message==='Vui lòng đăng nhập.'?'':err.message)}}
 
 document.querySelectorAll('[data-entry]').forEach(b=>b.onclick=()=>openEntry(b));
 document.querySelector('#entry-close').onclick=()=>entryDialog.close();

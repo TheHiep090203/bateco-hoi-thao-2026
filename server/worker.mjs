@@ -16,13 +16,17 @@ if(path.startsWith('/api/')){
   if(request.headers.get('Origin')!==url.origin||!request.headers.get('Content-Type')?.startsWith('application/json'))return json({error:'Yêu cầu không hợp lệ.'},403);
   const raw=await request.text();if(raw.length>1000)return json({error:'Nội dung quá dài.'},413);
   let body;try{body=JSON.parse(raw)}catch{return json({error:'Dữ liệu không hợp lệ.'},400)}
-  const ok=env.ADMIN_USER&&env.ADMIN_PASS&&env.SESSION_SECRET&&safeEqual(body?.user,env.ADMIN_USER)&&safeEqual(body?.pass,env.ADMIN_PASS);
+  const missing=['ADMIN_USER','ADMIN_PASS','SESSION_SECRET'].filter(k=>!env[k]);
+  // Names only, never values: a silent config gap otherwise reads as a wrong password.
+  if(missing.length){console.error('Thiếu biến môi trường đăng nhập:',missing.join(', '));return json({error:'Máy chủ chưa được cấu hình đăng nhập. Vui lòng báo quản trị viên.'},503)}
+  const ok=safeEqual(body?.user,env.ADMIN_USER)&&safeEqual(body?.pass,env.ADMIN_PASS);
   // Same message and same delay for every failure, so nothing leaks which field was wrong.
   if(!ok){await new Promise(r=>setTimeout(r,500));return json({error:'Tài khoản hoặc mật khẩu không đúng.'},401)}
   const exp=Date.now()+28800000;const token=await signSession(env.SESSION_SECRET,exp);
   return new Response(JSON.stringify({admin:true}),{status:200,headers:{...security,'Content-Type':'application/json; charset=utf-8','Set-Cookie':sessionCookie(url,token,28800)}});
  }
  if(path==='/api/admin/logout'){if(request.method!=='POST')return json({error:'Phương thức không được hỗ trợ.'},405);
+  if(request.headers.get('Origin')!==url.origin)return json({error:'Yêu cầu không hợp lệ.'},403);
   return new Response(JSON.stringify({ok:true}),{status:200,headers:{...security,'Content-Type':'application/json; charset=utf-8','Set-Cookie':sessionCookie(url,'',0)}});
  }
  if(path==='/api/admin/session'){if(request.method!=='GET')return json({error:'Phương thức không được hỗ trợ.'},405);if(!await isAdmin(request,env))return json({error:'Vui lòng đăng nhập.'},401);await seed(env);return json({admin:true})}

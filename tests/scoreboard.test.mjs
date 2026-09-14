@@ -21,7 +21,8 @@ test('Login issues an HttpOnly cookie only for the right credentials',async()=>{
  assert.equal((await call(env,'/api/admin/login','GET')).status,405);
  // The cookie just issued must actually authorise a write.
  assert.equal((await call(env,'/api/admin/results','POST',result(),{Cookie:setCookie.split(';')[0]})).status,200);
- assert.match((await call(env,'/api/admin/logout','POST')).headers.get('Set-Cookie'),/Max-Age=0/);db.close()});
+ assert.match((await call(env,'/api/admin/logout','POST',{},{Origin:origin})).headers.get('Set-Cookie'),/Max-Age=0/);
+ assert.equal((await call(env,'/api/admin/logout','POST',{},{Origin:'https://other.test'})).status,403);db.close()});
 test('Session cookies are rejected when expired, resigned or malformed',async()=>{const {db,binding}=database();const env={DB:binding,...creds};
  const expired='admin='+await signSession(SECRET,Date.now()-1);
  assert.equal((await call(env,'/api/admin/session','GET',undefined,{Cookie:expired})).status,401);
@@ -65,3 +66,12 @@ test('Draws require a session, replace the whole set per sport and leave other s
  snap=await (await call(env,'/api/scoreboard')).json();
  assert.equal(snap.draws.filter(d=>d.sport_id===1).length,0);
  assert.equal(snap.draws.filter(d=>d.sport_id===2).length,1);db.close()});
+test('Missing deploy config is reported as a server problem, not a wrong password',async()=>{const {db,binding}=database();
+ for(const absent of ['ADMIN_USER','ADMIN_PASS','SESSION_SECRET']){
+  const env={DB:binding,...creds};delete env[absent];
+  const r=await call(env,'/api/admin/login','POST',{user:'bateco',pass:'123'});
+  assert.equal(r.status,503,absent+' phải trả 503 thay vì 401');
+  assert.equal(r.headers.get('Set-Cookie'),null);
+  assert.doesNotMatch((await r.json()).error,/mật khẩu không đúng/)}
+ // Correct credentials with full config still work, so the guard did not over-trigger.
+ assert.equal((await call({DB:binding,...creds},'/api/admin/login','POST',{user:'bateco',pass:'123'})).status,200);db.close()});
