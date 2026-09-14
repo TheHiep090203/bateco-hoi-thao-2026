@@ -13,3 +13,7 @@ dist/.openai/
 
 # Playwright MCP debug artifacts
 .playwright-mcp/
+
+# Playwright test output
+test-results/
+playwright-report/
