@@ -1,0 +1,14 @@
+# Local-only, khong can cho build hay runtime.
+# LUU Y: khong duoc loai dist/ - scripts/build.mjs doc tu do de sinh public/.
+.codegraph
+.wrangler
+.playwright-mcp
+node_modules
+plans
+docs
+tests
+playwright.config.mjs
+test-results
+playwright-report
+local.db
+local.db-journal

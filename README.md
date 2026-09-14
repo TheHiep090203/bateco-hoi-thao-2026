@@ -7,7 +7,7 @@ Triển khai trên **Vercel** với cơ sở dữ liệu **Turso (libSQL)**.
 |---|---|
 | `dist/` | Mã nguồn viết tay của giao diện (HTML, CSS, JS) |
 | `public/` | Do `scripts/build.mjs` sinh ra từ `dist/`, Vercel phục vụ qua CDN |
-| `api/[...path].mjs` | Vercel Function, nhận mọi request `/api/*` |
+| `api/index.mjs` | Vercel Function, nhận mọi request `/api/*` qua rewrite |
 | `server/worker.mjs` | Toàn bộ định tuyến và nghiệp vụ API |
 | `server/db-libsql.mjs` | Adapter trình bày libSQL theo hình dạng API của D1 |
 | `drizzle/` | Migration SQL, chạy bằng `scripts/migrate.mjs` |
@@ -67,7 +67,7 @@ liên minh đã chọn trong từng kết quả thi đấu.
 ```bash
 curl -sSfL https://get.tur.so/install.sh | bash    # cài Turso CLI
 turso auth signup
-turso db create bateco-hoi-thao
+turso db create bateco-hoi-thao --location aws-ap-northeast-1
 turso db show bateco-hoi-thao --url                # -> TURSO_DATABASE_URL
 turso db tokens create bateco-hoi-thao             # -> TURSO_AUTH_TOKEN
 ```
@@ -104,6 +104,20 @@ lại `ADMIN_PASS` rồi deploy lại, không phải sửa code.
 vercel --prod
 ```
 
-`vercel.json` đã khai báo sẵn `buildCommand`, `outputDirectory` và các header bảo mật
-(CSP, `X-Content-Type-Options`, `Referrer-Policy`) cho file tĩnh. Function chạy trên
-runtime Node.js — runtime Edge của Vercel đã ngừng hỗ trợ.
+`vercel.json` đã khai báo sẵn `buildCommand`, `outputDirectory`, header bảo mật cho file
+tĩnh (CSP, `X-Content-Type-Options`, `Referrer-Policy`), và `regions: ["hnd1"]` để function
+chạy ở Tokyo cùng vùng với database. Function dùng runtime Node.js — runtime Edge của
+Vercel đã ngừng hỗ trợ.
+
+### Vì sao cần rewrite trong `vercel.json`
+
+Catch-all `api/[...path].mjs` của Vercel chỉ khớp **một** segment, nên `/api/admin/login`
+không bao giờ tới được function (platform trả 404 trước). Vì vậy `vercel.json` rewrite mọi
+`/api/*` về `api/index.mjs` kèm `?__path=` chứa đường dẫn gốc, và `api/index.mjs` dựng lại
+URL từ đó trước khi giao cho worker. Đừng bỏ rewrite này.
+
+### Triển khai hiện tại
+
+- URL: https://bateco-hoi-thao-2026.vercel.app
+- Database Turso: `bateco-hoi-thao` (Tokyo)
+- Function region: `hnd1` (Tokyo)
