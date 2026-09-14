@@ -10,3 +10,6 @@ dist/.openai/
 
 # CodeGraph index (local, machine-specific)
 .codegraph/
+
+# Playwright MCP debug artifacts
+.playwright-mcp/
