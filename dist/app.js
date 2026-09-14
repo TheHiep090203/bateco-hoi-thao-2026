@@ -55,6 +55,7 @@ function renderSportPanel(prefix,i){
  else renderOfficialRules(i);
 }
 for(const prefix of ['draw','rules']){renderSportPanel(prefix,0);document.querySelectorAll(`[data-${prefix}]`).forEach(b=>{b.onclick=()=>renderSportPanel(prefix,Number(b.dataset[prefix]));b.onkeydown=e=>{let i=Number(b.dataset[prefix]);if(e.key==='ArrowRight')i=(i+1)%5;else if(e.key==='ArrowLeft')i=(i+4)%5;else if(e.key==='Home')i=0;else if(e.key==='End')i=4;else return;e.preventDefault();renderSportPanel(prefix,i);document.querySelector(`#${prefix}-tab-${i}`).focus()}})}
+for(const [id,kind] of [['bang-dau','draw'],['huy-chuong','result'],['ket-qua','result']])document.querySelector('#'+id+' .section-head').insertAdjacentHTML('beforeend',`<button type="button" class="entry-button" data-entry="${kind}" data-section="${id}">Nhập kết quả</button>`);
 const navLinks=[...mainNav.querySelectorAll('a')];
 function updateActiveNav(){const boundary=document.querySelector('header').getBoundingClientRect().height+40;let active=null;for(const a of navLinks){if(document.querySelector(a.hash).getBoundingClientRect().top<=boundary)active=a}navLinks.forEach(a=>{if(a===active)a.setAttribute('aria-current','location');else a.removeAttribute('aria-current')})}
 window.addEventListener('scroll',updateActiveNav,{passive:true});window.addEventListener('resize',updateActiveNav);updateActiveNav();
