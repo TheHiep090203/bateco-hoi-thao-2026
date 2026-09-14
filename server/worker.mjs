@@ -6,7 +6,12 @@ function sessionCookie(url,value,maxAge){return `admin=${value}; HttpOnly; SameS
 // Fails closed: without SESSION_SECRET no cookie can ever verify.
 async function isAdmin(request,env){return verifySession(env.SESSION_SECRET,cookie(request,'admin'),Date.now())}
 async function seed(env){await env.DB.batch([...allianceData.map(a=>env.DB.prepare('INSERT OR IGNORE INTO alliances (id,name,members) VALUES (?,?,?)').bind(a.id,a.name,a.members)),...sportData.map(s=>env.DB.prepare('INSERT OR IGNORE INTO sports (id,name,discipline) VALUES (?,?,?)').bind(s.id,s.name,s.discipline))])}
-async function snapshot(env){const [a,s,r,d,b]=await env.DB.batch([env.DB.prepare('SELECT * FROM alliances ORDER BY id'),env.DB.prepare('SELECT * FROM sports ORDER BY id'),env.DB.prepare('SELECT id,sport_id,event,participants,score,gold,silver,bronze,revision,updated_at FROM results ORDER BY updated_at DESC,id'),env.DB.prepare('SELECT id,sport_id,ord,c1,c2,c3,c4 FROM draws ORDER BY sport_id,ord'),env.DB.prepare('SELECT sport_id,data FROM brackets ORDER BY sport_id')]);const brackets=[];for(const row of b.results){try{brackets.push({sport_id:row.sport_id,data:JSON.parse(row.data)})}catch{console.error('Bo qua so do hong, sport_id',row.sport_id)}}return {alliances:a.results,sports:s.results,results:r.results,draws:d.results,brackets,standings:standings(a.results,r.results)}}
+async function snapshot(env){const [a,s,r,d]=await env.DB.batch([env.DB.prepare('SELECT * FROM alliances ORDER BY id'),env.DB.prepare('SELECT * FROM sports ORDER BY id'),env.DB.prepare('SELECT id,sport_id,event,participants,score,gold,silver,bronze,revision,updated_at FROM results ORDER BY updated_at DESC,id'),env.DB.prepare('SELECT id,sport_id,ord,c1,c2,c3,c4 FROM draws ORDER BY sport_id,ord')]);return {alliances:a.results,sports:s.results,results:r.results,draws:d.results,brackets:await bracketRows(env),standings:standings(a.results,r.results)}}
+// Đọc riêng, ngoài batch chính: bảng điểm là chức năng quan trọng nhất ngày thi đấu và
+// không được phụ thuộc vào sơ đồ. Hỏng ở đây chỉ làm mất sơ đồ, không sập cả trang.
+async function bracketRows(env){try{const b=await env.DB.prepare('SELECT sport_id,data FROM brackets ORDER BY sport_id').all();
+ const rows=[];for(const row of b.results){try{rows.push({sport_id:row.sport_id,data:JSON.parse(row.data)})}catch{console.error('Bỏ qua sơ đồ hỏng, sport_id',row.sport_id)}}return rows}
+ catch(e){console.error('Không đọc được sơ đồ, trang vẫn phục vụ phần còn lại',e.message);return []}}
 export default {async fetch(request,env){const url=new URL(request.url),path=url.pathname;try{
 if(path.startsWith('/api/')){
  if(!env.DB)return json({error:'Chưa kết nối cơ sở dữ liệu. Vui lòng thử lại sau.'},503);

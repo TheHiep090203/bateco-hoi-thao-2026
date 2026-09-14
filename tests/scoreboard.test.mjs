@@ -107,3 +107,15 @@ test('Bracket route requires admin and keeps exactly one row per sport',async()=
  assert.equal(snapshot.brackets[0].data.teams[0],'Z');
  assert.equal(snapshot.brackets[0].data.matches.QF1.winner,2);
  db.close()});
+test('Scoreboard keeps serving standings when the bracket table cannot be read',async()=>{const {db,binding}=database();
+ // Mô phỏng production chưa migrate: bảng brackets chưa tồn tại.
+ db.exec('DROP TABLE brackets');
+ const env={DB:binding,...creds};
+ assert.equal((await call(env,'/api/admin/results','POST',result(),admin)).status,200);
+ const response=await call(env,'/api/scoreboard');
+ assert.equal(response.status,200);
+ const snapshot=await response.json();
+ assert.deepEqual(snapshot.brackets,[]);
+ assert.equal(snapshot.results.length,1);
+ assert.equal(snapshot.standings[0].gold,1);
+ db.close()});
