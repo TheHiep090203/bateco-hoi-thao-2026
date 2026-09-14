@@ -1,7 +1,7 @@
 ---
 phase: 3
 title: "Bảng đấu"
-status: pending
+status: completed
 priority: P1
 effort: "2h"
 dependencies: [1, 2]
@@ -188,10 +188,10 @@ Test tự động cần thêm:
 
 ## Success Criteria
 
-- [ ] Migration chạy được, có bảng `draws`, không còn bảng `admins`
-- [ ] Nhãn cột trong editor đổi đúng theo từng môn
-- [ ] Lưu thay toàn bộ set của đúng một môn, không đụng môn khác
-- [ ] Dòng đã lưu còn nguyên sau khi tải lại trang
-- [ ] Nội dung có HTML bị escape, không chạy được script
-- [ ] `POST /api/admin/draws` không đăng nhập trả 403
-- [ ] `pnpm test` xanh với test mới cho `draws`
+- [x] Migration chạy được, có bảng `draws`, không còn bảng `admins`
+- [x] Nhãn cột trong editor đổi đúng theo từng môn
+- [x] Lưu thay toàn bộ set của đúng một môn, không đụng môn khác
+- [x] Dòng đã lưu còn nguyên sau khi tải lại trang
+- [x] Nội dung có HTML bị escape, không chạy được script
+- [x] `POST /api/admin/draws` không đăng nhập trả 403
+- [x] `pnpm test` xanh với test mới cho `draws`

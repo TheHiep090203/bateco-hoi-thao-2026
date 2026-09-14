@@ -1,7 +1,7 @@
 ---
 title: "Modal Nhập kết quả all-in-one — Hội thao BATECO 2026"
 description: "Thay xác thực qua header OpenAI bằng login user/password có cookie ký HMAC, gộp toàn bộ việc nhập liệu vào một modal duy nhất trên trang chính cho Bảng đấu, Bảng tổng sắp huy chương và Kết quả thi đấu."
-status: pending
+status: completed
 priority: P1
 effort: 6h
 branch: main
@@ -48,10 +48,10 @@ Hai thay đổi nền tảng bắt buộc phải làm kèm theo:
 
 | # | Phase | Status | Depends on |
 |---|-------|--------|------------|
-| 1 | [Phase 1: Nền tảng xác thực](./phase-01-auth-foundation.md) | Pending | — |
-| 2 | [Phase 2: Modal và form kết quả](./phase-02-modal-ket-qua.md) | Pending | 1 |
-| 3 | [Phase 3: Bảng đấu](./phase-03-bang-dau.md) | Pending | 1, 2 |
-| 4 | [Phase 4: Kiểm thử và chuẩn bị deploy](./phase-04-verify-deploy.md) | Pending | 1, 2, 3 |
+| 1 | [Phase 1: Nền tảng xác thực](./phase-01-auth-foundation.md) | Completed | — |
+| 2 | [Phase 2: Modal và form kết quả](./phase-02-modal-ket-qua.md) | Completed | 1 |
+| 3 | [Phase 3: Bảng đấu](./phase-03-bang-dau.md) | Completed | 1, 2 |
+| 4 | [Phase 4: Kiểm thử và chuẩn bị deploy](./phase-04-verify-deploy.md) | Completed | 1, 2, 3 |
 
 ## Architecture
 
@@ -148,12 +148,12 @@ ra hai nguồn sự thật lệch nhau.
 
 ## Success Criteria
 
-- [ ] `pnpm test` xanh, có test mới cho đăng nhập (đúng, sai, cookie hết hạn, chữ ký sai) và cho `draws` (thay set, validate, bắt buộc đăng nhập)
-- [ ] Trên `wrangler dev` cổng 8787: cả ba nút mở được modal; sai mật khẩu bị từ chối; đúng mật khẩu vào được form
-- [ ] Lưu một kết quả từ `#ket-qua` thì kết quả hiện trong bảng và bảng tổng sắp huy chương đổi theo
-- [ ] Lưu dòng bảng đấu từ `#bang-dau` thì hiện đúng tab môn đó và còn nguyên sau khi tải lại trang
-- [ ] `POST /api/admin/results` khi chưa đăng nhập vẫn trả 401
-- [ ] `node scripts/build.mjs` chạy được và không còn tham chiếu tới `admin.html` / `admin.js`
+- [x] `pnpm test` xanh, có test mới cho đăng nhập (đúng, sai, cookie hết hạn, chữ ký sai) và cho `draws` (thay set, validate, bắt buộc đăng nhập)
+- [x] Trên `wrangler dev` cổng 8787: cả ba nút mở được modal; sai mật khẩu bị từ chối; đúng mật khẩu vào được form
+- [x] Lưu một kết quả từ `#ket-qua` thì kết quả hiện trong bảng và bảng tổng sắp huy chương đổi theo
+- [x] Lưu dòng bảng đấu từ `#bang-dau` thì hiện đúng tab môn đó và còn nguyên sau khi tải lại trang
+- [x] `POST /api/admin/results` khi chưa đăng nhập vẫn trả 401
+- [x] `node scripts/build.mjs` chạy được và không còn tham chiếu tới `admin.html` / `admin.js`
 
 ## Câu hỏi mở
 

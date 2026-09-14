@@ -1,7 +1,7 @@
 ---
 phase: 1
 title: "Nền tảng xác thực"
-status: pending
+status: completed
 priority: P1
 effort: "1.5h"
 dependencies: []
@@ -179,10 +179,10 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST -H "Content-Type: application/j
 
 ## Success Criteria
 
-- [ ] `node scripts/build.mjs` nhúng được `domain.mjs` và throw rõ ràng nếu không nhúng được
-- [ ] `pnpm test` tự build trước rồi chạy, toàn bộ xanh
-- [ ] Đăng nhập đúng trả cookie `HttpOnly`; sai trả 401 chậm ~500ms và không có cookie
-- [ ] Cookie hết hạn hoặc sai chữ ký đều bị từ chối
-- [ ] `POST /api/admin/results` không cookie vẫn trả 401
-- [ ] Không còn tham chiếu `oai-authenticated-user-id` trong mã nguồn
-- [ ] `.dev.vars` tồn tại ở local và không bị git theo dõi
+- [x] `node scripts/build.mjs` nhúng được `domain.mjs` và throw rõ ràng nếu không nhúng được
+- [x] `pnpm test` tự build trước rồi chạy, toàn bộ xanh
+- [x] Đăng nhập đúng trả cookie `HttpOnly`; sai trả 401 chậm ~500ms và không có cookie
+- [x] Cookie hết hạn hoặc sai chữ ký đều bị từ chối
+- [x] `POST /api/admin/results` không cookie vẫn trả 401
+- [x] Không còn tham chiếu `oai-authenticated-user-id` trong mã nguồn
+- [x] `.dev.vars` tồn tại ở local và không bị git theo dõi

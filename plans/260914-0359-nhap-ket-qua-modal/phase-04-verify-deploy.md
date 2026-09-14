@@ -1,7 +1,7 @@
 ---
 phase: 4
 title: "Kiểm thử và chuẩn bị deploy"
-status: pending
+status: completed
 priority: P1
 effort: "45m"
 dependencies: [1, 2, 3]
@@ -133,10 +133,10 @@ grep -rn "123" dist/app.js dist/entry.js || echo "OK: khong co mat khau trong bu
 
 ## Success Criteria
 
-- [ ] `node scripts/build.mjs` và `pnpm test` đều xanh
-- [ ] Cả 18 mục kiểm thử tay ở bước 2 đều đạt
-- [ ] Không có mật khẩu trong bất kỳ file nào thuộc `dist/`
-- [ ] `.dev.vars` không bị commit
-- [ ] `README.md` mô tả đủ cách chạy local, biến môi trường và cách deploy
-- [ ] Secret production đã đặt, và quyết định về `ADMIN_PASS` đã được người dùng chốt
-- [ ] Commit dùng Conventional Commits với đúng email `caothehiep2003@gmail.com`
+- [x] `node scripts/build.mjs` và `pnpm test` đều xanh
+- [x] Cả 18 mục kiểm thử tay ở bước 2 đều đạt
+- [x] Không có mật khẩu trong bất kỳ file nào thuộc `dist/`
+- [x] `.dev.vars` không bị commit
+- [x] `README.md` mô tả đủ cách chạy local, biến môi trường và cách deploy
+- [x] Secret production đã đặt, và quyết định về `ADMIN_PASS` đã được người dùng chốt
+- [x] Commit dùng Conventional Commits với đúng email `caothehiep2003@gmail.com`

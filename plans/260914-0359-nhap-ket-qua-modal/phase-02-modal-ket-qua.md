@@ -1,7 +1,7 @@
 ---
 phase: 2
 title: "Modal và form kết quả"
-status: pending
+status: completed
 priority: P1
 effort: "2h"
 dependencies: [1]
@@ -156,9 +156,9 @@ Kiểm tra tay trên `wrangler dev` cổng 8787:
 
 ## Success Criteria
 
-- [ ] Ba nút hiện đúng vị trí, không phá dòng trạng thái của `#huy-chuong`
-- [ ] Modal đăng nhập từ chối mật khẩu sai và chấp nhận `bateco`/`123`
-- [ ] Form kết quả thêm, sửa, xóa được và bảng huy chương đổi theo
-- [ ] Còn phiên thì mở modal không bị hỏi lại mật khẩu
-- [ ] `/admin` trả 404 và không còn tham chiếu tới `admin.html` / `admin.js`
-- [ ] Esc đóng modal, focus trả về đúng nút
+- [x] Ba nút hiện đúng vị trí, không phá dòng trạng thái của `#huy-chuong`
+- [x] Modal đăng nhập từ chối mật khẩu sai và chấp nhận `bateco`/`123`
+- [x] Form kết quả thêm, sửa, xóa được và bảng huy chương đổi theo
+- [x] Còn phiên thì mở modal không bị hỏi lại mật khẩu
+- [x] `/admin` trả 404 và không còn tham chiếu tới `admin.html` / `admin.js`
+- [x] Esc đóng modal, focus trả về đúng nút
