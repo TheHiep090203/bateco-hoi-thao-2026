@@ -1,12 +1,12 @@
-node_modules/
-.wrangler/
-.sites-runtime/
-.dev.vars
+# Bi mat local — khong bao gio commit
 .env
+.env.*
+!.env.example
+.dev.vars
+node_modules/
+.sites-runtime/
 work/
 outputs/
-dist/server/
-dist/.openai/
 
 # CodeGraph index (local, machine-specific)
 .codegraph/
@@ -17,3 +17,8 @@ dist/.openai/
 # Playwright test output
 test-results/
 playwright-report/
+
+# Sinh ra bởi scripts/build.mjs cho Vercel
+public/
+local.db*
+.vercel/

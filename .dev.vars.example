@@ -1,4 +1,0 @@
-# Sao chep thanh .dev.vars roi dien gia tri that. KHONG commit .dev.vars.
-ADMIN_USER=bateco
-ADMIN_PASS=dat-mat-khau-o-day
-SESSION_SECRET=sinh-bang-openssl-rand-hex-32

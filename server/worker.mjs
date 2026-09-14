@@ -1,8 +1,6 @@
 import { allianceData, sportData, standings, validateResult, validateDraws, safeEqual, signSession, verifySession } from './domain.mjs';
 const security={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'"};
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{...security,'Content-Type':'application/json; charset=utf-8'}})}
-function page(body,status=200){return new Response(body,{status,headers:{...security,'Content-Type':'text/html; charset=utf-8'}})}
-function message(title,text,status=403){return page(`<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/live.css"><main class="admin-shell"><h1 class="admin-title">${title}</h1><p>${text}</p><a class="button orange" href="/">Về website hội thao</a></main></html>`,status)}
 function cookie(request,name){const raw=request.headers.get('Cookie');if(!raw)return '';for(const part of raw.split(';')){const t=part.trim();if(t.startsWith(name+'='))return t.slice(name.length+1)}return ''}
 function sessionCookie(url,value,maxAge){return `admin=${value}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${maxAge}`+(url.protocol==='https:'?'; Secure':'')}
 // Fails closed: without SESSION_SECRET no cookie can ever verify.
@@ -65,6 +63,5 @@ if(path.startsWith('/api/')){
  }
  return json({error:'Không tìm thấy thao tác.'},404);
 }
-if(request.method!=='GET'&&request.method!=='HEAD')return json({error:'Chỉ hỗ trợ xem trang.'},405);
-const key=path==='/'?'/index.html':path;const body=assets[key];if(body===undefined)return message('Không tìm thấy trang','Vui lòng quay lại website hội thao.',404);const type=key.endsWith('.css')?'text/css':key.endsWith('.js')?'text/javascript':'text/html';return new Response(request.method==='HEAD'?null:body,{headers:{...security,'Content-Type':type+'; charset=utf-8'}});
-}catch(e){console.error('Scoreboard request failed',e);return path.startsWith('/api/')?json({error:'Không thể kết nối dữ liệu. Vui lòng thử lại; nội dung đang nhập vẫn được giữ.'},503):message('Tạm thời chưa thể tải trang','Vui lòng thử lại sau.',503)}}};
+return json({error:'Không tìm thấy thao tác.'},404);
+}catch(e){console.error('Scoreboard request failed',e);return json({error:'Không thể kết nối dữ liệu. Vui lòng thử lại; nội dung đang nhập vẫn được giữ.'},503)}}};

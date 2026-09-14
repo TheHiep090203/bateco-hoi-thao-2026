@@ -7,8 +7,8 @@ export default defineConfig({
   use: { baseURL: 'http://127.0.0.1:8787', trace: 'off' },
   // Reuses a dev server if one is already running on 8787.
   webServer: {
-    command: 'node scripts/build.mjs && pnpm exec wrangler dev --port 8787 --local',
-    url: 'http://127.0.0.1:8787/api/scoreboard',
+    command: 'node scripts/build.mjs && node scripts/dev.mjs',
+    url: 'http://127.0.0.1:8787/',
     reuseExistingServer: true,
     timeout: 120000,
   },
