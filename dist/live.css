@@ -41,3 +41,22 @@
 #entry-dialog .bracket-teams{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
 #entry-dialog #bracket-form h3{font-size:16px;margin:22px 0 12px}
 @media(max-width:650px){.bracket-sheet h3{padding:20px 16px;font-size:18px}.bracket-scroll{padding:4px 16px 20px}#entry-dialog .bracket-teams{grid-template-columns:1fr}}
+
+/* Nút Xóa inline. Chỉ hiện khi adminSession=true — thuần UX, server vẫn là nơi chặn thật. */
+.row-delete{border:1px solid #d88135;border-radius:4px;background:white;color:#a95820;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.row-delete:hover{background:#a95820;color:white}
+.row-delete:disabled{opacity:.55;cursor:wait}
+.results-table .row-actions{width:1%;white-space:nowrap;text-align:right}
+.official-row.has-admin{grid-template-columns:repeat(4,minmax(0,1fr)) auto}
+.official-row.has-admin .row-actions{display:flex;align-items:start}
+.bracket-slot:has(.bracket-del){padding-right:32px}
+.bracket-del{position:absolute;right:5px;top:5px;width:21px;height:21px;padding:0;line-height:1;border:1px solid #d8b7a0;border-radius:3px;background:white;color:#a95820;font-size:13px;cursor:pointer}
+.bracket-del:hover{background:#a95820;color:white}
+.bracket-del-match{border:0;background:none;color:#a95820;font-size:14px;line-height:1;padding:0 1px;cursor:pointer}
+.bracket-score{display:inline-flex;align-items:center;gap:5px}
+#confirm-dialog{width:min(460px,92vw);min-height:0;padding:26px 28px}
+#confirm-dialog h2{margin:0 0 12px;font-size:20px}
+#confirm-dialog p{font-size:15px;line-height:1.7;margin:0 0 24px}
+#confirm-dialog .actions{display:flex;gap:12px}
+#entry-logout{margin-left:auto;margin-right:14px;font-size:13px;padding:7px 13px;border:1px solid #b9cbd2;border-radius:5px;background:white;cursor:pointer}
+@media(max-width:650px){.official-row.has-admin{grid-template-columns:1fr 1fr}.official-row.has-admin .row-actions{grid-column:1/-1;margin-top:6px}}

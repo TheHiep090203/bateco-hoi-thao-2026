@@ -2,20 +2,20 @@
 // chưa có phiên hợp lệ; form nhập liệu đổi theo section đã mở modal.
 const ENTRY_MEDALS={gold:'HCV',silver:'HCB',bronze:'HCĐ'};
 const entryEsc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-document.body.insertAdjacentHTML('beforeend','<dialog id="entry-dialog" class="admin-shell" aria-labelledby="entry-title"><div class="dialog-header"><p class="eyebrow" id="entry-eyebrow">NHẬP KẾT QUẢ</p><button type="button" class="close" id="entry-close" aria-label="Đóng">×</button></div><h2 id="entry-title">Nhập kết quả</h2><div id="entry-body"></div></dialog>');
+document.body.insertAdjacentHTML('beforeend','<dialog id="entry-dialog" class="admin-shell" aria-labelledby="entry-title"><div class="dialog-header"><p class="eyebrow" id="entry-eyebrow">NHẬP KẾT QUẢ</p><button type="button" class="button" id="entry-logout" hidden>Đăng xuất</button><button type="button" class="close" id="entry-close" aria-label="Đóng">×</button></div><h2 id="entry-title">Nhập kết quả</h2><div id="entry-body"></div></dialog>');
 const entryDialog=document.querySelector('#entry-dialog'),entryBody=document.querySelector('#entry-body'),entryTitle=document.querySelector('#entry-title');
 let entryTrigger=null,entryKind='result',entrySection='',entryBusy=false;
 
 async function entryApi(path,options){const response=await fetch(path,{cache:'no-store',...options,signal:AbortSignal.timeout(15000)});let value;try{value=await response.json()}catch{throw Error('Không tải được dữ liệu. Vui lòng thử lại.')}if(!response.ok)throw Error(value.error||'Không thể xử lý yêu cầu.');return value}
 function entryLock(on){entryBusy=on;document.querySelector('#entry-close').disabled=on;entryBody.querySelectorAll('input,select,textarea,button').forEach(c=>c.disabled=on)}
 
-function renderLogin(message){entryTitle.textContent='Đăng nhập để nhập kết quả';
+function renderLogin(message){entryTitle.textContent='Đăng nhập để nhập kết quả';document.querySelector('#entry-logout').hidden=true;
  entryBody.innerHTML=`<form id="entry-login"><label>Tài khoản<input name="user" autocomplete="username" required autofocus></label><label>Mật khẩu<input name="pass" type="password" autocomplete="current-password" required></label><p id="entry-login-status" role="status">${entryEsc(message||'')}</p><div class="actions"><button class="button orange" type="submit">Đăng nhập</button></div></form>`;
  entryBody.querySelector('#entry-login').onsubmit=async e=>{e.preventDefault();if(entryBusy)return;const form=e.target,status=entryBody.querySelector('#entry-login-status');entryLock(true);status.textContent='Đang kiểm tra…';
   try{await entryApi('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:form.elements.user.value,pass:form.elements.pass.value})});entryLock(false);renderStep()}
   catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Máy chủ chưa phản hồi. Vui lòng thử lại.':err.message;form.elements.pass.focus();form.elements.pass.select()}}}
 
-function renderStep(){entryKind==='draw'?renderDrawForm():entryKind==='bracket'?renderBracketForm():renderResultForm()}
+function renderStep(){document.querySelector('#entry-logout').hidden=false;entryKind==='draw'?renderDrawForm():entryKind==='bracket'?renderBracketForm():renderResultForm()}
 
 function renderResultForm(){entryTitle.textContent='Nhập kết quả thi đấu';
  const note=entrySection==='huy-chuong'?'<p class="muted">Huy chương được cộng tự động từ kết quả thi đấu. Chọn liên minh nhận HCV/HCB/HCĐ ngay trong từng kết quả bên dưới.</p>':'';
@@ -30,7 +30,7 @@ function renderResultForm(){entryTitle.textContent='Nhập kết quả thi đấ
  entryBody.querySelector('#entry-new').onclick=()=>{if(!entryBusy)fresh()};
  function renderList(){const rows=liveData.results;entryBody.querySelector('#entry-list').innerHTML=rows.length?rows.map(r=>{const sport=liveData.sports.find(s=>s.id===r.sport_id);return `<article class="admin-record"><div class="record-details"><h4>${entryEsc(r.event)}</h4><dl><dt>Môn thi đấu</dt><dd>${entryEsc(sport?.name)} – ${entryEsc(sport?.discipline)}</dd><dt>Đội/VĐV</dt><dd>${entryEsc(r.participants)}</dd><dt>Kết quả</dt><dd>${entryEsc(r.score)}</dd>${['gold','silver','bronze'].map(m=>`<dt>${ENTRY_MEDALS[m]}</dt><dd>${r[m]?entryEsc(liveData.alliances.find(a=>a.id===r[m])?.name):'Chưa trao'}</dd>`).join('')}</dl></div><div class="record-actions"><button type="button" class="button" data-entry-edit="${entryEsc(r.id)}">Sửa</button><button type="button" class="button delete-result" data-entry-del="${entryEsc(r.id)}">Xóa</button></div></article>`}).join(''):'<p class="muted">Chưa có kết quả nào được nhập.</p>';
   entryBody.querySelectorAll('[data-entry-edit]').forEach(b=>b.onclick=()=>{if(entryBusy)return;const r=liveData.results.find(r=>r.id===b.dataset.entryEdit);recordId=r.id;revision=r.revision;for(const k of ['sport_id','event','participants','score','gold','silver','bronze'])form.elements[k].value=r[k]??'';entryBody.querySelector('#entry-save').textContent='Cập nhật kết quả';entryBody.querySelector('#entry-status').textContent='Đang sửa kết quả đã lưu. Huy chương cũ sẽ được thay bằng lựa chọn mới.';form.elements.event.focus()});
-  entryBody.querySelectorAll('[data-entry-del]').forEach(b=>b.onclick=async()=>{if(entryBusy)return;const r=liveData.results.find(r=>r.id===b.dataset.entryDel);if(!confirm(`Xóa kết quả “${r.event}”? Huy chương của kết quả này sẽ bị loại khỏi bảng tổng sắp. Thao tác không thể hoàn tác.`))return;const status=entryBody.querySelector('#entry-status');entryLock(true);status.textContent='Đang xóa…';
+  entryBody.querySelectorAll('[data-entry-del]').forEach(b=>b.onclick=async()=>{if(entryBusy)return;const r=liveData.results.find(r=>r.id===b.dataset.entryDel);if(!await confirmDialog(`Xóa kết quả “${r.event}”? Huy chương của kết quả này sẽ bị loại khỏi bảng tổng sắp. Thao tác không thể hoàn tác.`,'Xóa'))return;const status=entryBody.querySelector('#entry-status');entryLock(true);status.textContent='Đang xóa…';
    try{await entryApi('/api/admin/results',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:r.id,revision:r.revision})});await sync(true);entryLock(false);if(recordId===r.id)fresh();renderList();status.textContent='Đã xóa kết quả. Bảng tổng sắp đã được tính lại.'}
    catch(err){entryLock(false);status.textContent=err.message}})}
  renderList();
@@ -56,7 +56,7 @@ function renderDrawForm(){entryTitle.textContent='Nhập bảng đấu';
   host.querySelectorAll('[data-drop]').forEach(b=>b.onclick=()=>{if(entryBusy)return;rows.splice(+b.dataset.drop,1);dirty=true;draw()})}
  draw();
  entryBody.querySelector('#draw-add').onclick=()=>{if(entryBusy)return;rows.push(['','','','']);dirty=true;draw();host.querySelector('[data-row="'+(rows.length-1)+'"]')?.focus()};
- select.onchange=()=>{if(dirty&&!confirm('Bỏ các thay đổi chưa lưu của môn trước?')){select.value=String(sport);return}sport=Number(select.value);rows=stored();dirty=false;status.textContent='';draw()};
+ select.onchange=async()=>{if(dirty&&!await confirmDialog('Bỏ các thay đổi chưa lưu của môn trước?','Bỏ thay đổi')){select.value=String(sport);return}sport=Number(select.value);rows=stored();dirty=false;status.textContent='';draw()};
  entryBody.querySelector('#draw-save').onclick=async()=>{if(entryBusy)return;entryLock(true);status.textContent='Đang lưu…';
   try{await entryApi('/api/admin/draws',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sport_id:sport+1,rows})});await sync(true);entryLock(false);rows=stored();dirty=false;draw();status.textContent='Đã lưu bảng đấu. Trang đã cập nhật.'}
   catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Bấm lưu lại để kiểm tra.':err.message}}}
@@ -91,3 +91,49 @@ function renderBracketForm(){entryTitle.textContent='Nhập sơ đồ loại tr�
   try{await entryApi('/api/admin/bracket',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sport_id:3,teams:state.teams,matches:state.matches})});await sync(true);entryLock(false);
    Object.assign(state,bracketData?JSON.parse(JSON.stringify(bracketData)):emptyBracket());draw();status.textContent='Đã lưu sơ đồ. Trang đã cập nhật.'}
   catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Bấm lưu lại để kiểm tra.':err.message}}}
+
+// Modal xác nhận dùng chung, thay hộp thoại mặc định của trình duyệt. Truyền showCancel=false
+// để dùng như hộp thông báo một nút.
+document.body.insertAdjacentHTML('beforeend','<dialog id="confirm-dialog" class="admin-shell" aria-labelledby="confirm-title"><h2 id="confirm-title">Xác nhận</h2><p id="confirm-message"></p><div class="actions"><button type="button" class="button orange" id="confirm-yes">Có</button><button type="button" class="button" id="confirm-no">Không</button></div></dialog>');
+const confirmDialogEl=document.querySelector('#confirm-dialog');
+function confirmDialog(message,yesLabel='Có',showCancel=true){return new Promise(resolve=>{
+ const yes=confirmDialogEl.querySelector('#confirm-yes'),no=confirmDialogEl.querySelector('#confirm-no');
+ confirmDialogEl.querySelector('#confirm-message').textContent=message;
+ confirmDialogEl.querySelector('#confirm-title').textContent=showCancel?'Xác nhận':'Không thể thực hiện';
+ yes.textContent=yesLabel;no.hidden=!showCancel;
+ let done=false;const finish=v=>{if(done)return;done=true;confirmDialogEl.close();resolve(v)};
+ yes.onclick=()=>finish(true);no.onclick=()=>finish(false);
+ confirmDialogEl.addEventListener('close',()=>finish(false),{once:true});
+ confirmDialogEl.showModal();(showCancel?no:yes).focus()})}
+
+document.querySelector('#entry-logout').onclick=async()=>{if(entryBusy)return;
+ try{await entryApi('/api/admin/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})}catch{}
+ await refreshAdminSession();entryDialog.close()};
+
+// Xóa inline trên bảng công khai. Dùng uỷ quyền sự kiện vì live.js vẽ lại bảng mỗi 5 giây;
+// gắn trực tiếp vào từng nút sẽ mất sau lần vẽ kế tiếp.
+const postBracket=d=>entryApi('/api/admin/bracket',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sport_id:3,teams:d.teams,matches:d.matches})});
+async function inlineDelete(btn,run){btn.disabled=true;
+ try{await run();await sync(true)}
+ catch(err){await refreshAdminSession();await confirmDialog(err.name==='TimeoutError'?'Chưa xác nhận được. Tải lại trang rồi kiểm tra trước khi xóa lại.':err.message,'Đã hiểu',false)}
+ finally{btn.disabled=false}}
+document.addEventListener('click',async e=>{
+ const btn=e.target.closest('[data-del-result],[data-del-draw],[data-del-team],[data-del-match]');
+ if(!btn||btn.disabled||entryBusy||!liveData)return;
+ const d=btn.dataset;
+ if(d.delResult){const r=liveData.results.find(x=>x.id===d.delResult);if(!r)return;
+  if(!await confirmDialog(`Xóa kết quả “${r.event}”? Huy chương của kết quả này sẽ bị loại khỏi bảng tổng sắp. Thao tác không thể hoàn tác.`,'Xóa'))return;
+  return inlineDelete(btn,()=>entryApi('/api/admin/results',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:r.id,revision:r.revision})}))}
+ if(d.delDraw!==undefined){const sport=Number(d.delSport),index=Number(d.delDraw);
+  const rows=(liveData.draws||[]).filter(x=>x.sport_id===sport+1).map(x=>[x.c1,x.c2,x.c3,x.c4]);
+  if(!rows[index])return;
+  if(!await confirmDialog('Xóa dòng này khỏi bảng đấu? Thao tác không thể hoàn tác.','Xóa'))return;
+  rows.splice(index,1);
+  return inlineDelete(btn,()=>entryApi('/api/admin/draws',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sport_id:sport+1,rows})}))}
+ const next=JSON.parse(JSON.stringify(bracketData||emptyBracket()));
+ if(d.delTeam!==undefined){const k=Number(d.delTeam);
+  if(!await confirmDialog(`Xóa đội ở suất WIN ${k+1}? Các vòng sau phụ thuộc vào suất này sẽ trống theo.`,'Xóa'))return;
+  next.teams[k]='';return inlineDelete(btn,()=>postBracket(next))}
+ if(d.delMatch){
+  if(!await confirmDialog(`Xóa kết quả ${bracketMatchLabels[d.delMatch]}? Các vòng sau phụ thuộc vào kết quả này sẽ trống theo.`,'Xóa'))return;
+  next.matches[d.delMatch]={score:'',winner:null};return inlineDelete(btn,()=>postBracket(next))}});
