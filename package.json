@@ -1,0 +1,1 @@
+{"name":"bateco-live-scoreboard","private":true,"type":"module","scripts":{"build":"node scripts/build.mjs","dev":"wrangler dev","db:generate":"drizzle-kit generate","db:local":"wrangler d1 migrations apply DB --local","test":"node --test tests/*.test.mjs"},"devDependencies":{"drizzle-kit":"0.31.4","drizzle-orm":"0.44.5","wrangler":"4.24.3"}}

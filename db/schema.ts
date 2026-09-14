@@ -1,0 +1,5 @@
+import { sqliteTable, text, integer, uniqueIndex } from 'drizzle-orm/sqlite-core';
+export const alliances = sqliteTable('alliances', {id:integer('id').primaryKey(),name:text('name').notNull(),members:text('members').notNull()});
+export const sports = sqliteTable('sports', {id:integer('id').primaryKey(),name:text('name').notNull(),discipline:text('discipline').notNull()});
+export const results = sqliteTable('results', {id:text('id').primaryKey(),sportId:integer('sport_id').notNull().references(()=>sports.id),event:text('event').notNull(),participants:text('participants').notNull(),score:text('score').notNull(),gold:integer('gold').references(()=>alliances.id),silver:integer('silver').references(()=>alliances.id),bronze:integer('bronze').references(()=>alliances.id),revision:integer('revision').notNull().default(1),updatedAt:text('updated_at').notNull(),updatedBy:text('updated_by').notNull()},t=>[uniqueIndex('results_sport_event').on(t.sportId,t.event)]);
+export const admins = sqliteTable('admins',{id:text('id').primaryKey(),slot:text('slot').notNull().unique()});

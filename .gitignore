@@ -1,0 +1,12 @@
+node_modules/
+.wrangler/
+.sites-runtime/
+.dev.vars
+.env
+work/
+outputs/
+dist/server/
+dist/.openai/
+
+# CodeGraph index (local, machine-specific)
+.codegraph/
