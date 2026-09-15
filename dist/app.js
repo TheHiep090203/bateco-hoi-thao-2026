@@ -120,7 +120,7 @@ if(window.IntersectionObserver&&!matchMedia('(prefers-reduced-motion: reduce)').
  const fxResize=()=>{const r=Math.min(window.devicePixelRatio||1,fxDprCap);fxW=fxHero.clientWidth;fxH=fxHero.clientHeight;fxCanvas.width=Math.round(fxW*r);fxCanvas.height=Math.round(fxH*r);fxCtx.setTransform(r,0,0,r,0,0)};
  const fxBurst=()=>{
   if(fxSparks.length+fxPerBurst>fxMax)return;
-  const x=fxW*(.08+Math.random()*.6),y=fxH*(.12+Math.random()*.33),color=fxColors[(Math.random()*fxColors.length)|0],speed=2.6+Math.random()*2.2;
+  const x=fxW*(.08+Math.random()*.6),y=fxH*(.10+Math.random()*.16),color=fxColors[(Math.random()*fxColors.length)|0],speed=2.6+Math.random()*2.2;
   for(let i=0;i<fxPerBurst;i++){const angle=i/fxPerBurst*6.2832+Math.random()*.22,v=speed*(.55+Math.random()*.45);
    fxSparks.push({x,y,vx:Math.cos(angle)*v,vy:Math.sin(angle)*v,life:1,fade:.009+Math.random()*.006,color})}};
  const fxFrame=now=>{
