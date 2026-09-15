@@ -125,7 +125,7 @@ if(window.IntersectionObserver&&!matchMedia('(prefers-reduced-motion: reduce)').
    fxSparks.push({x,y,vx:Math.cos(angle)*v,vy:Math.sin(angle)*v,life:1,fade:.009+Math.random()*.006,color})}};
  const fxFrame=now=>{
   fxRaf=requestAnimationFrame(fxFrame);
-  if(now>=fxNextBurst){fxBurst();fxNextBurst=now+2800+Math.random()*1200}
+  if(now>=fxNextBurst){fxBurst();fxNextBurst=now+1500+Math.random()*900}
   fxCtx.clearRect(0,0,fxW,fxH);fxCtx.lineWidth=2.1;fxCtx.lineCap='round';
   for(let i=fxSparks.length-1;i>=0;i--){const s=fxSparks[i];
    s.x+=s.vx;s.y+=s.vy;s.vy+=.028;s.vx*=.987;s.vy*=.987;s.life-=s.fade;

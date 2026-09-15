@@ -105,6 +105,22 @@ test.describe('pháo hoa nền khối giới thiệu', () => {
     expect(await demRaf(page), 'canvas đã bị gỡ nhưng vòng rAF vẫn quay').toBe(sauKhiTat);
   });
 
+  test('pháo hoa bắn đủ dày để người lướt nhanh vẫn kịp thấy', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator(FX)).toHaveCount(1);
+
+    const MAU = 30;
+    let coPhaoHoa = 0;
+    for (let i = 0; i < MAU; i++){
+      if (await pixelsDrawn(page) > 0) coPhaoHoa++;
+      await page.waitForTimeout(100);
+    }
+
+    expect(coPhaoHoa / MAU,
+      `chỉ ${coPhaoHoa}/${MAU} khung có pháo hoa; nhịp bắn thưa tới mức người cuộn nhanh qua hero sẽ không thấy gì`)
+      .toBeGreaterThanOrEqual(0.7);
+  });
+
   test('kéo cạnh cửa sổ không cấp phát lại bitmap canvas theo từng sự kiện resize', async ({ page }) => {
     await page.addInitScript(() => {
       window.__capPhat = 0;
