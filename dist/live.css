@@ -82,3 +82,4 @@ dialog[open]{animation:bt-dialog-in .2s ease-out}
 @keyframes bt-pulse{0%,100%{opacity:1}50%{opacity:.4}}
 @media(prefers-reduced-motion:reduce){.alliance,.entry-button,.button,.sport-tabs button,summary span{transition:none}.entry-button:active,.button:active{transform:none}details[open]>p,dialog[open],.live-status:before{animation:none}.section.bt-reveal{opacity:1;transform:none;transition:none}}
 @media print{.section.bt-reveal{opacity:1;transform:none}}
+.hero-fx{position:absolute;inset:0;z-index:0;pointer-events:none}

@@ -112,3 +112,31 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshRu
 if(window.IntersectionObserver&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
  const revealer=new IntersectionObserver((entries,obs)=>{for(const e of entries)if(e.isIntersecting){e.target.classList.add('bt-shown');obs.unobserve(e.target)}},{rootMargin:'0px 0px -8% 0px'});
  for(const s of document.querySelectorAll('.section:not(#bang-dau):not(#ket-qua)')){s.classList.add('bt-reveal');revealer.observe(s)}}
+if(window.IntersectionObserver&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
+ const fxHero=document.querySelector('.hero'),fxCanvas=document.createElement('canvas');
+ fxCanvas.className='hero-fx';fxCanvas.setAttribute('aria-hidden','true');fxHero.prepend(fxCanvas);
+ const fxCtx=fxCanvas.getContext('2d'),fxColors=['#76d8d0','#ff985b','#ffffff','#ffc08a'],fxMax=70,fxPerBurst=16,fxDprCap=1.5;
+ let fxW=0,fxH=0,fxRaf=0,fxResizeRaf=0,fxOnScreen=false,fxOff=false,fxNextBurst=0,fxSparks=[];
+ const fxResize=()=>{const r=Math.min(window.devicePixelRatio||1,fxDprCap);fxW=fxHero.clientWidth;fxH=fxHero.clientHeight;fxCanvas.width=Math.round(fxW*r);fxCanvas.height=Math.round(fxH*r);fxCtx.setTransform(r,0,0,r,0,0)};
+ const fxBurst=()=>{
+  if(fxSparks.length+fxPerBurst>fxMax)return;
+  const x=fxW*(.08+Math.random()*.6),y=fxH*(.12+Math.random()*.33),color=fxColors[(Math.random()*fxColors.length)|0],speed=2.6+Math.random()*2.2;
+  for(let i=0;i<fxPerBurst;i++){const angle=i/fxPerBurst*6.2832+Math.random()*.22,v=speed*(.55+Math.random()*.45);
+   fxSparks.push({x,y,vx:Math.cos(angle)*v,vy:Math.sin(angle)*v,life:1,fade:.009+Math.random()*.006,color})}};
+ const fxFrame=now=>{
+  fxRaf=requestAnimationFrame(fxFrame);
+  if(now>=fxNextBurst){fxBurst();fxNextBurst=now+2800+Math.random()*1200}
+  fxCtx.clearRect(0,0,fxW,fxH);fxCtx.lineWidth=2.1;fxCtx.lineCap='round';
+  for(let i=fxSparks.length-1;i>=0;i--){const s=fxSparks[i];
+   s.x+=s.vx;s.y+=s.vy;s.vy+=.028;s.vx*=.987;s.vy*=.987;s.life-=s.fade;
+   if(s.life<=0){fxSparks.splice(i,1);continue}
+   fxCtx.globalAlpha=s.life;fxCtx.strokeStyle=s.color;
+   fxCtx.beginPath();fxCtx.moveTo(s.x-s.vx*6,s.y-s.vy*6);fxCtx.lineTo(s.x,s.y);fxCtx.stroke()}
+  fxCtx.globalAlpha=1};
+ const fxStop=()=>{if(!fxRaf)return;cancelAnimationFrame(fxRaf);fxRaf=0;fxSparks=[];fxCtx.clearRect(0,0,fxW,fxH)};
+ const fxSync=()=>{if(!fxOff&&fxOnScreen&&!document.hidden){if(!fxRaf){fxNextBurst=0;fxRaf=requestAnimationFrame(fxFrame)}}else fxStop()};
+ fxResize();
+ new IntersectionObserver(entries=>{fxOnScreen=entries[0].isIntersecting;fxSync()}).observe(fxHero);
+ document.addEventListener('visibilitychange',fxSync);
+ matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',e=>{if(e.matches){fxOff=true;fxSync();fxCanvas.remove()}});
+ window.addEventListener('resize',()=>{if(fxResizeRaf)return;fxResizeRaf=requestAnimationFrame(()=>{fxResizeRaf=0;fxResize()})})}
