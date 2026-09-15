@@ -78,6 +78,8 @@ test('nút Khôi phục mặc định gỡ hẳn nội dung đã nhập và tr�
 
   await page.locator('#luat-thi-dau .entry-button').click();
   await page.waitForSelector('#entry-rules');
+  await expect(page.locator('#entry-rules [name=title]'),
+    'form phải điền sẵn ngay khi mở, không đợi mạng — admin gõ vào ô rỗng sẽ bị ghi đè').toHaveValue('Kéo co');
   await page.locator('#entry-rules [name=title]').fill('Kéo co ' + MARKER);
   await page.locator('#rules-save').click();
   await expect(page.locator('#entry-status')).toHaveText('Đã lưu. Mục Luật Thi Đấu đã cập nhật.', { timeout: 15000 });

@@ -44,7 +44,8 @@ function renderRulesForm(){entryTitle.textContent='Nhập luật thi đấu';
  entryBody.innerHTML=`<label>Tài liệu luật<select id="rule-doc">${RULE_DOCS.map(([k,l])=>`<option value="${k}">${entryEsc(l)}</option>`).join('')}</select></label><p class="muted">Mỗi dòng là một mục. Dòng dạng “cột 1 | cột 2” tạo một dòng bảng; các dòng bảng liền nhau gộp thành một bảng, dòng đầu là tiêu đề. Dòng trống kết thúc bảng.</p><form id="entry-rules"><label>Tên luật<input name="title" maxlength="120" required autocomplete="off"></label><label>Thông tin nhanh<textarea name="quick" rows="5" maxlength="4000"></textarea></label><label>Lưu ý quan trọng<textarea name="notes" rows="4" maxlength="4000"></textarea></label><label>Toàn văn luật<textarea name="full" rows="14" maxlength="16000"></textarea></label><div class="actions"><button class="button orange" type="submit" id="rules-save">Lưu luật</button><button class="button" type="button" id="rules-reset">Khôi phục mặc định</button></div><p id="entry-status" role="status"></p></form>`;
  const select=entryBody.querySelector('#rule-doc'),form=entryBody.querySelector('#entry-rules'),status=entryBody.querySelector('#entry-status');
  const load=()=>{const raw=ruleRawText(key);for(const k of ['title','quick','notes','full'])form.elements[k].value=raw[k]??'';dirty=false};
- loadRules().then(load);
+ load();
+ loadRules().then(()=>{if(!dirty)load()});
  form.oninput=()=>{dirty=true};
  select.onchange=async()=>{if(entryBusy)return;
   if(dirty&&!await confirmDialog('Bỏ các thay đổi chưa lưu của tài liệu trước?','Bỏ thay đổi')){select.value=key;return}
