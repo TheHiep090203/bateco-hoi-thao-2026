@@ -51,14 +51,31 @@ Thiếu `SESSION_SECRET` thì không cookie nào xác minh được, nên hệ t
 thao tác ghi thay vì cho qua. Thiếu bất kỳ biến đăng nhập nào thì `/api/admin/login`
 trả 503 kèm tên biến vào log, chứ không báo nhầm là sai mật khẩu.
 
-## Nhập kết quả
+## Nhập liệu
 
-Không có trang quản trị riêng. Trên trang chính, mỗi mục **Bảng đấu**, **Bảng tổng sắp
-huy chương** và **Kết quả thi đấu** đều có nút *Nhập kết quả* ở bên phải tiêu đề. Bấm
-nút sẽ mở hộp thoại yêu cầu đăng nhập, sau đó hiện form tương ứng. Phiên kéo dài 8 giờ.
+Không có trang quản trị riêng. Trên trang chính, năm mục dưới đây đều có nút nhập liệu ở
+bên phải tiêu đề. Bấm nút sẽ mở hộp thoại yêu cầu đăng nhập, sau đó hiện form tương ứng.
+Phiên kéo dài 8 giờ.
 
-Bảng tổng sắp huy chương **không nhập trực tiếp**: số HCV/HCB/HCĐ được cộng tự động từ
-liên minh đã chọn trong từng kết quả thi đấu.
+| Mục | Nút | Nội dung nhập |
+|---|---|---|
+| Bảng đấu | *Nhập bảng đấu* | Bảng đấu của Kéo co, Điền kinh, AOE, Bóng đá |
+| Bảng đấu, tab Pickleball | *Nhập sơ đồ* | Sơ đồ loại trực tiếp 08 đội |
+| Lịch trình | *Nhập lịch trình* | Các mốc giờ trong ngày hội thao |
+| Luật thi đấu | *Nhập luật thi đấu* | Toàn văn luật từng môn |
+| Bảng tổng sắp huy chương | *Nhập huy chương* | Tổng HCV/HCB/HCĐ từng liên minh |
+| Kết quả thi đấu | *Nhập kết quả* | Kết quả từng trận, từng phần thi |
+
+Mục Bảng đấu mang hai nút nhưng chỉ hiện một nút mỗi lúc, theo tab đang chọn: bốn môn
+dùng bảng thì hiện *Nhập bảng đấu*, riêng Pickleball dùng sơ đồ nên hiện *Nhập sơ đồ*.
+
+Lịch trình và Luật thi đấu giữ sẵn nội dung mặc định ngay trong `dist/app.js`; nội dung
+admin nhập chỉ phủ lên trên. Mỗi form có nút *Khôi phục mặc định* để gỡ hẳn phần đã nhập.
+Định dạng lịch trình: mỗi dòng một mục dạng `giờ | hoạt động`, thêm `| nhãn` ở cuối nếu
+muốn gắn nhãn cho mục đó.
+
+Bảng tổng sắp huy chương nhập **tổng** HCV/HCB/HCĐ của từng liên minh, không suy ra từ
+kết quả thi đấu. Xếp hạng theo tổng số huy chương; bằng tổng thì xét HCV, rồi HCB, rồi HCĐ.
 
 ## Đưa lên production
 
