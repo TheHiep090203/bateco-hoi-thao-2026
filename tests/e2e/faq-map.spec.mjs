@@ -13,7 +13,7 @@ test('FAQ địa điểm tổ chức mở ra bản đồ Google nhúng', async (
   const frame = item.locator('iframe');
   await expect(frame).toBeVisible();
   await expect(frame).toHaveAttribute('src', /^https:\/\/www\.google\.com\/maps\/embed\?pb=/);
-  await expect(frame).toHaveAttribute('title', /Bateco/);
+  await expect(frame).toHaveAttribute('title', /Sân Bóng Biên Phòng Cầu Diễn/);
   await expect(frame).toHaveAttribute('loading', 'lazy');
 });
 
