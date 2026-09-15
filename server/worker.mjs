@@ -1,4 +1,4 @@
-import { allianceData, sportData, standings, validateResult, validateDraws, validateBracket, safeEqual, signSession, verifySession } from './domain.mjs';
+import { allianceData, sportData, standings, validateResult, validateDraws, validateBracket, validateMedals, safeEqual, signSession, verifySession } from './domain.mjs';
 const security={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; frame-src https://www.google.com; connect-src 'self'; base-uri 'none'; form-action 'self'"};
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{...security,'Content-Type':'application/json; charset=utf-8'}})}
 function cookie(request,name){const raw=request.headers.get('Cookie');if(!raw)return '';for(const part of raw.split(';')){const t=part.trim();if(t.startsWith(name+'='))return t.slice(name.length+1)}return ''}
@@ -6,7 +6,7 @@ function sessionCookie(url,value,maxAge){return `admin=${value}; HttpOnly; SameS
 // Fails closed: without SESSION_SECRET no cookie can ever verify.
 async function isAdmin(request,env){return verifySession(env.SESSION_SECRET,cookie(request,'admin'),Date.now())}
 async function seed(env){await env.DB.batch([...allianceData.map(a=>env.DB.prepare('INSERT OR IGNORE INTO alliances (id,name,members) VALUES (?,?,?)').bind(a.id,a.name,a.members)),...sportData.map(s=>env.DB.prepare('INSERT OR IGNORE INTO sports (id,name,discipline) VALUES (?,?,?)').bind(s.id,s.name,s.discipline))])}
-async function snapshot(env){const [a,s,r,d]=await env.DB.batch([env.DB.prepare('SELECT * FROM alliances ORDER BY id'),env.DB.prepare('SELECT * FROM sports ORDER BY id'),env.DB.prepare('SELECT id,sport_id,event,participants,score,gold,silver,bronze,revision,updated_at FROM results ORDER BY updated_at DESC,id'),env.DB.prepare('SELECT id,sport_id,ord,c1,c2,c3,c4 FROM draws ORDER BY sport_id,ord')]);return {alliances:a.results,sports:s.results,results:r.results,draws:d.results,brackets:await bracketRows(env),standings:standings(a.results,r.results)}}
+async function snapshot(env){const [a,s,r,d]=await env.DB.batch([env.DB.prepare('SELECT * FROM alliances ORDER BY id'),env.DB.prepare('SELECT * FROM sports ORDER BY id'),env.DB.prepare('SELECT id,sport_id,event,participants,score,revision,updated_at FROM results ORDER BY updated_at DESC,id'),env.DB.prepare('SELECT id,sport_id,ord,c1,c2,c3,c4 FROM draws ORDER BY sport_id,ord')]);return {alliances:a.results,sports:s.results,results:r.results,draws:d.results,brackets:await bracketRows(env),standings:standings(a.results)}}
 // Đọc riêng, ngoài batch chính: bảng điểm là chức năng quan trọng nhất ngày thi đấu và
 // không được phụ thuộc vào sơ đồ. Hỏng ở đây chỉ làm mất sơ đồ, không sập cả trang.
 async function bracketRows(env){try{const b=await env.DB.prepare('SELECT sport_id,data FROM brackets ORDER BY sport_id').all();
@@ -50,11 +50,20 @@ if(path.startsWith('/api/')){
   if(Number(request.headers.get('Content-Length'))>12000)return json({error:'Nội dung quá dài.'},413);const raw=await request.text();if(raw.length>12000)return json({error:'Nội dung quá dài.'},413);
   let r;try{r=validateResult(JSON.parse(raw))}catch(e){return json({error:e.message},400)}await seed(env);
   const previous=await env.DB.prepare('SELECT * FROM results WHERE id = ?').bind(r.id).first();
-  if(previous&&['sport_id','event','participants','score','gold','silver','bronze'].every(k=>previous[k]===r[k])&&r.revision===previous.revision-1)return json({ok:true,id:r.id,revision:previous.revision});
+  if(previous&&['sport_id','event','participants','score'].every(k=>previous[k]===r[k])&&r.revision===previous.revision-1)return json({ok:true,id:r.id,revision:previous.revision});
   if(previous?r.revision!==previous.revision:r.revision!==0)return json({error:'Kết quả đã được cập nhật ở nơi khác. Hãy tải lại danh sách rồi mở lại kết quả để sửa.'},409);
   const now=new Date().toISOString(),uid='admin';let saved;
-  try{saved=previous?await env.DB.prepare('UPDATE results SET sport_id=?,event=?,participants=?,score=?,gold=?,silver=?,bronze=?,updated_at=?,updated_by=?,revision=revision+1 WHERE id=? AND revision=?').bind(r.sport_id,r.event,r.participants,r.score,r.gold,r.silver,r.bronze,now,uid,r.id,r.revision).run():await env.DB.prepare('INSERT INTO results (id,sport_id,event,participants,score,gold,silver,bronze,revision,updated_at,updated_by) VALUES (?,?,?,?,?,?,?,?,1,?,?)').bind(r.id,r.sport_id,r.event,r.participants,r.score,r.gold,r.silver,r.bronze,now,uid).run()}catch(e){if(String(e).includes('UNIQUE'))return json({error:'Trận/Phần thi này đã tồn tại. Hãy chọn Sửa kết quả trong danh sách.'},409);throw e}
+  try{saved=previous?await env.DB.prepare('UPDATE results SET sport_id=?,event=?,participants=?,score=?,updated_at=?,updated_by=?,revision=revision+1 WHERE id=? AND revision=?').bind(r.sport_id,r.event,r.participants,r.score,now,uid,r.id,r.revision).run():await env.DB.prepare('INSERT INTO results (id,sport_id,event,participants,score,revision,updated_at,updated_by) VALUES (?,?,?,?,?,1,?,?)').bind(r.id,r.sport_id,r.event,r.participants,r.score,now,uid).run()}catch(e){if(String(e).includes('UNIQUE'))return json({error:'Trận/Phần thi này đã tồn tại. Hãy chọn Sửa kết quả trong danh sách.'},409);throw e}
   if(!saved.meta.changes)return json({error:'Kết quả vừa được sửa ở nơi khác. Hãy tải lại danh sách.'},409);return json({ok:true,id:r.id,revision:r.revision+1});
+ }
+ if(path==='/api/admin/medals'&&request.method==='POST'){
+  if(!await isAdmin(request,env))return json({error:'Vui lòng đăng nhập.'},401);
+  if(request.headers.get('Origin')!==url.origin||!request.headers.get('Content-Type')?.startsWith('application/json'))return json({error:'Yêu cầu không hợp lệ.'},403);
+  const raw=await request.text();if(raw.length>1000)return json({error:'Nội dung quá dài.'},413);
+  let m;try{m=validateMedals(JSON.parse(raw))}catch(e){return json({error:e.message},400)}
+  await seed(env);
+  await env.DB.prepare('UPDATE alliances SET gold=?,silver=?,bronze=? WHERE id=?').bind(m.gold,m.silver,m.bronze,m.alliance_id).run();
+  return json({ok:true,alliance_id:m.alliance_id});
  }
  if(path==='/api/admin/draws'&&request.method==='POST'){
   if(!await isAdmin(request,env))return json({error:'Vui lòng đăng nhập.'},401);

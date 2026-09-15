@@ -55,8 +55,7 @@ async function seed(page, origin){
     id, sport_id: 3,
     event: `Tứ kết 1 – Nội dung đôi nam nữ mở rộng ${MARKER}`,
     participants: `${TEAMS[0]}\nđối đầu\n${TEAMS[6]}`,
-    score: '2–1 (11–9, 8–11, 11–7)',
-    gold: 1, silver: 2, bronze: 3, revision: 0 } });
+    score: '2–1 (11–9, 8–11, 11–7)', revision: 0 } });
   expect(r.status(), await r.text()).toBe(200);
   // draws và bracket ghi đè theo sport_id nên chạy lại nhiều lần vẫn cho cùng trạng thái.
   const d = await page.request.post('/api/admin/draws', { headers:{Origin:origin}, data:{

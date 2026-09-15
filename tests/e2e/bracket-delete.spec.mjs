@@ -53,7 +53,7 @@ test('admin đăng nhập thấy nút Xóa, xác nhận bằng modal của site 
   const event = 'Kiểm thử xóa ' + Date.now();
   const created = await page.request.post('/api/admin/results', {
     headers: { Origin: origin },
-    data: { id: crypto.randomUUID(), sport_id: 1, event, participants: 'Đội A', score: '1–0', gold: null, silver: null, bronze: null, revision: 0 },
+    data: { id: crypto.randomUUID(), sport_id: 1, event, participants: 'Đội A', score: '1–0', revision: 0 },
   });
   expect(created.status()).toBe(200);
 
@@ -87,7 +87,7 @@ test('bấm Không trong modal xác nhận thì không xóa gì', async ({ page 
   const id = crypto.randomUUID();
   await page.request.post('/api/admin/results', {
     headers: { Origin: origin },
-    data: { id, sport_id: 1, event, participants: 'Đội B', score: '2–0', gold: null, silver: null, bronze: null, revision: 0 },
+    data: { id, sport_id: 1, event, participants: 'Đội B', score: '2–0', revision: 0 },
   });
 
   await page.reload();

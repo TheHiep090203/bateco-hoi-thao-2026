@@ -1,19 +1,28 @@
-import {test} from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync} from 'node:sqlite';import fs from 'node:fs';import worker from '../server/worker.mjs';import {standings,allianceData,validateResult,validateDraws,validateBracket,safeEqual,signSession} from '../server/domain.mjs';
+import {test} from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync} from 'node:sqlite';import fs from 'node:fs';import worker from '../server/worker.mjs';import {standings,allianceData,validateResult,validateDraws,validateBracket,validateMedals,safeEqual,signSession} from '../server/domain.mjs';
 function database(){const db=new DatabaseSync(':memory:');for(const f of fs.readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(fs.readFileSync('drizzle/'+f,'utf8'));const binding={prepare(sql){return {args:[],bind(...args){this.args=args;return this},async first(){return db.prepare(sql).get(...this.args)||null},async run(){const r=db.prepare(sql).run(...this.args);return {success:true,meta:{changes:r.changes}}},async all(){return {results:db.prepare(sql).all(...this.args)}}}},async batch(statements){db.exec('BEGIN');try{const r=[];for(const s of statements){try{r.push(await s.all())}catch{r.push(await s.run())}}db.exec('COMMIT');return r}catch(e){db.exec('ROLLBACK');throw e}}};return {db,binding}}
 const origin='https://scoreboard.test';const SECRET='test-session-secret';
 const creds={ADMIN_USER:'bateco',ADMIN_PASS:'123',SESSION_SECRET:SECRET};
 const admin={Cookie:'admin='+await signSession(SECRET,Date.now()+3600000)};
 function call(env,path,method='GET',body,headers={}){return worker.fetch(new Request(origin+path,{method,headers:{...(body?{'Origin':origin,'Content-Type':'application/json'}:{}),...headers},body:body?JSON.stringify(body):undefined}),env)}
-const result=(overrides={})=>({id:'00000000-0000-4000-8000-000000000001',sport_id:1,event:'Nội dung kiểm thử',participants:'Đội kiểm thử',score:'2–1',gold:1,silver:2,bronze:3,revision:0,...overrides});
-test('Ranking uses total medals first, then gold, silver, bronze',()=>{const rows=standings(allianceData,[{gold:1,silver:2,bronze:3},{gold:2,silver:2,bronze:3}]);assert.deepEqual(rows.map(r=>r.id),[2,3,1]); // Tong quyet dinh: 5 HCB + 5 HCD (tong 10) xep tren 1 HCV (tong 1).
- const heavy=standings(allianceData,[{gold:1},...Array.from({length:5},()=>({silver:2,bronze:2}))]);assert.deepEqual(heavy.map(r=>r.id),[2,1,3]);assert.deepEqual(heavy.map(r=>r.rank),[1,2,3]); // Bang tong thi HCV pha hoa.
- const tieBreak=standings(allianceData,[{gold:1},{silver:2}]);assert.deepEqual(tieBreak.map(r=>r.id),[1,2,3]);assert.deepEqual(tieBreak.map(r=>r.rank),[1,2,3]); assert.deepEqual(standings(allianceData,[]).map(r=>r.rank),[1,1,1]);assert.equal(standings(allianceData,Array.from({length:10},()=>({silver:2}))).find(r=>r.id===2).silver,10)});
-test('Input validation rejects unknown sport, oversized text and invalid medal',()=>{assert.throws(()=>validateResult(result({sport_id:6})));assert.throws(()=>validateResult(result({event:'x'.repeat(161)})));assert.throws(()=>validateResult(result({gold:4})));assert.throws(()=>validateResult(result({revision:-1})));assert.equal(validateResult(result({gold:null})).gold,null)});
-test('D1-compatible full flow: viewer protection, update, retry, conflicts and authoritative totals',async()=>{const {db,binding}=database();const env={DB:binding,...creds};let response=await call(env,'/api/scoreboard');let snapshot=await response.json();assert.equal(snapshot.alliances.length,3);assert.equal(snapshot.sports.length,5);assert.equal(snapshot.results.length,0);assert.equal((await call(env,'/api/admin/results','POST',result())).status,401);assert.equal((await call(env,'/api/admin/results','POST',result(),{Cookie:'admin=999999999999.badsig'})).status,401);assert.equal((await call(env,'/api/admin/results','POST',result(),{...admin,Origin:'https://other.test'})).status,403);
-response=await call(env,'/api/admin/results','POST',result(),admin);assert.equal(response.status,200);assert.equal((await response.json()).revision,1);assert.equal((await call(env,'/api/admin/results','POST',result(),admin)).status,200);snapshot=await (await call(env,'/api/scoreboard')).json();assert.equal(snapshot.results.length,1);assert.equal(snapshot.standings[0].gold,1);
-assert.equal((await call(env,'/api/admin/results','POST',result({id:'00000000-0000-4000-8000-000000000002'}),admin)).status,409);const update=result({revision:1,gold:3,silver:null,bronze:null});assert.equal((await call(env,'/api/admin/results','POST',update,admin)).status,200);assert.equal((await call(env,'/api/admin/results','POST',update,admin)).status,200);assert.equal((await call(env,'/api/admin/results','POST',result({revision:1,gold:2}),admin)).status,409);snapshot=await (await call(env,'/api/scoreboard')).json();assert.equal(snapshot.standings[0].id,3);assert.equal(snapshot.standings.find(r=>r.id===1).gold,0);assert.equal(snapshot.standings.find(r=>r.id===2).silver,0);assert.equal(snapshot.results[0].revision,2);assert.equal((await call(env,'/api/admin/results','POST',result({revision:2,gold:null,silver:null,bronze:null}),admin)).status,200);snapshot=await (await call(env,'/api/scoreboard')).json();assert.ok(snapshot.standings.every(r=>r.gold+r.silver+r.bronze===0));assert.equal((await call(env,'/api/admin/results','POST',result(),{Cookie:'admin='+await signSession('wrong-secret',Date.now()+3600000)})).status,401);db.close()});
+const result=(overrides={})=>({id:'00000000-0000-4000-8000-000000000001',sport_id:1,event:'Nội dung kiểm thử',participants:'Đội kiểm thử',score:'2–1',revision:0,...overrides});
+const alliance=(id,gold=0,silver=0,bronze=0)=>({...allianceData.find(a=>a.id===id),gold,silver,bronze});
+const medalBody=(overrides={})=>({alliance_id:1,gold:0,silver:0,bronze:0,...overrides});
+test('Ranking uses total medals first, then gold, silver, bronze',()=>{const rows=standings([alliance(1,1,0,0),alliance(2,1,2,0),alliance(3,0,0,2)]);assert.deepEqual(rows.map(r=>r.id),[2,3,1]);
+ const heavy=standings([alliance(1,1,0,0),alliance(2,0,5,5),alliance(3)]);assert.deepEqual(heavy.map(r=>r.id),[2,1,3]);assert.deepEqual(heavy.map(r=>r.rank),[1,2,3]);
+ const tieBreak=standings([alliance(1,1,0,0),alliance(2,0,1,0),alliance(3)]);assert.deepEqual(tieBreak.map(r=>r.id),[1,2,3]);assert.deepEqual(tieBreak.map(r=>r.rank),[1,2,3]);
+ assert.deepEqual(standings([alliance(1),alliance(2),alliance(3)]).map(r=>r.rank),[1,1,1]);
+ assert.equal(standings([alliance(1),alliance(2,0,10,0),alliance(3)]).find(r=>r.id===2).silver,10)});
+
+
+test('Input validation rejects unknown sport and oversized text, and drops medal fields',()=>{assert.throws(()=>validateResult(result({sport_id:6})));assert.throws(()=>validateResult(result({event:'x'.repeat(161)})));assert.throws(()=>validateResult(result({revision:-1})));
+ const legacy=validateResult(result({gold:1,silver:2,bronze:3}));
+ for(const medal of ['gold','silver','bronze'])assert.equal(medal in legacy,false,medal+' khong con thuoc hop dong ket qua')});
+test('D1-compatible full flow: viewer protection, update, retry and conflicts',async()=>{const {db,binding}=database();const env={DB:binding,...creds};let response=await call(env,'/api/scoreboard');let snapshot=await response.json();assert.equal(snapshot.alliances.length,3);assert.equal(snapshot.sports.length,5);assert.equal(snapshot.results.length,0);assert.ok(snapshot.standings.every(r=>r.gold+r.silver+r.bronze===0));assert.equal((await call(env,'/api/admin/results','POST',result())).status,401);assert.equal((await call(env,'/api/admin/results','POST',result(),{Cookie:'admin=999999999999.badsig'})).status,401);assert.equal((await call(env,'/api/admin/results','POST',result(),{...admin,Origin:'https://other.test'})).status,403);
+response=await call(env,'/api/admin/results','POST',result(),admin);assert.equal(response.status,200);assert.equal((await response.json()).revision,1);assert.equal((await call(env,'/api/admin/results','POST',result(),admin)).status,200);snapshot=await (await call(env,'/api/scoreboard')).json();assert.equal(snapshot.results.length,1);
+assert.ok(snapshot.standings.every(r=>r.gold+r.silver+r.bronze===0));for(const medal of ['gold','silver','bronze'])assert.equal(medal in snapshot.results[0],false,medal+' khong duoc lot ra ngoai qua /api/scoreboard');
+assert.equal((await call(env,'/api/admin/results','POST',result({id:'00000000-0000-4000-8000-000000000002'}),admin)).status,409);const update=result({revision:1,score:'3-0'});assert.equal((await call(env,'/api/admin/results','POST',update,admin)).status,200);assert.equal((await call(env,'/api/admin/results','POST',update,admin)).status,200);assert.equal((await call(env,'/api/admin/results','POST',result({revision:1,score:'khac'}),admin)).status,409);snapshot=await (await call(env,'/api/scoreboard')).json();assert.equal(snapshot.results[0].revision,2);assert.equal(snapshot.results[0].score,'3-0');assert.equal((await call(env,'/api/admin/results','POST',result(),{Cookie:'admin='+await signSession('wrong-secret',Date.now()+3600000)})).status,401);db.close()});
 test('Storage outage returns unavailable instead of fabricated zero scores',async()=>{const r=await call({},'/api/scoreboard');assert.equal(r.status,503);assert.ok((await r.json()).error)});
-test('Delete requires admin and current revision; removes medals once and preserves other results',async()=>{const {db,binding}=database();const env={DB:binding,...creds};await call(env,'/api/admin/results','POST',result(),admin);await call(env,'/api/admin/results','POST',result({id:'00000000-0000-4000-8000-000000000002',event:'Other event',gold:2,silver:null,bronze:null}),admin);const deletion={id:result().id,revision:1};assert.equal((await call(env,'/api/admin/results','DELETE',deletion)).status,401);assert.equal((await call(env,'/api/admin/results','DELETE',deletion,{Cookie:'admin=not-a-token'})).status,401);assert.equal((await call(env,'/api/admin/results','DELETE',deletion,{...admin,Origin:'https://other.test'})).status,403);assert.equal((await call(env,'/api/admin/results','DELETE',{...deletion,revision:2},admin)).status,409);assert.equal((await call(env,'/api/admin/results','DELETE',deletion,admin)).status,200);assert.equal((await call(env,'/api/admin/results','DELETE',deletion,admin)).status,200);const snapshot=await (await call(env,'/api/scoreboard')).json();assert.equal(snapshot.results.length,1);assert.equal(snapshot.standings[0].id,2);assert.equal(snapshot.standings[0].gold,1);assert.equal(snapshot.standings.find(a=>a.id===1).gold,0);assert.equal(snapshot.standings.find(a=>a.id===3).bronze,0);assert.equal((await call(env,'/api/admin/results','POST',result({revision:1}),admin)).status,409);db.close()});
+test('Delete requires admin and current revision; preserves other results',async()=>{const {db,binding}=database();const env={DB:binding,...creds};await call(env,'/api/admin/results','POST',result(),admin);await call(env,'/api/admin/results','POST',result({id:'00000000-0000-4000-8000-000000000002',event:'Other event'}),admin);const deletion={id:result().id,revision:1};assert.equal((await call(env,'/api/admin/results','DELETE',deletion)).status,401);assert.equal((await call(env,'/api/admin/results','DELETE',deletion,{Cookie:'admin=not-a-token'})).status,401);assert.equal((await call(env,'/api/admin/results','DELETE',deletion,{...admin,Origin:'https://other.test'})).status,403);assert.equal((await call(env,'/api/admin/results','DELETE',{...deletion,revision:2},admin)).status,409);assert.equal((await call(env,'/api/admin/results','DELETE',deletion,admin)).status,200);assert.equal((await call(env,'/api/admin/results','DELETE',deletion,admin)).status,200);const snapshot=await (await call(env,'/api/scoreboard')).json();assert.equal(snapshot.results.length,1);assert.equal(snapshot.results[0].event,'Other event');assert.equal((await call(env,'/api/admin/results','POST',result({revision:1}),admin)).status,409);db.close()});
 test('Login issues an HttpOnly cookie only for the right credentials',async()=>{const {db,binding}=database();const env={DB:binding,...creds};
  const good=await call(env,'/api/admin/login','POST',{user:'bateco',pass:'123'});assert.equal(good.status,200);
  const setCookie=good.headers.get('Set-Cookie');assert.match(setCookie,/^admin=\d+\./);assert.match(setCookie,/HttpOnly/);assert.match(setCookie,/SameSite=Strict/);
@@ -119,5 +128,37 @@ test('Scoreboard keeps serving standings when the bracket table cannot be read',
  const snapshot=await response.json();
  assert.deepEqual(snapshot.brackets,[]);
  assert.equal(snapshot.results.length,1);
- assert.equal(snapshot.standings[0].gold,1);
+ assert.equal((await call(env,'/api/admin/medals','POST',medalBody({alliance_id:1,gold:1}),admin)).status,200);
+ const after=await (await call(env,'/api/scoreboard')).json();
+ assert.equal(after.standings[0].id,1);
+ assert.equal(after.standings[0].gold,1);
  db.close()});
+test('Medal validation rejects unknown alliance, negative, fractional and oversized totals',()=>{
+ assert.throws(()=>validateMedals(medalBody({alliance_id:0})));
+ assert.throws(()=>validateMedals(medalBody({alliance_id:4})));
+ assert.throws(()=>validateMedals(medalBody({alliance_id:'1'})));
+ assert.throws(()=>validateMedals(medalBody({gold:-1})));
+ assert.throws(()=>validateMedals(medalBody({silver:1.5})));
+ assert.throws(()=>validateMedals(medalBody({bronze:1000})));
+ assert.throws(()=>validateMedals(medalBody({gold:null})));
+ assert.throws(()=>validateMedals([]));
+ assert.deepEqual(validateMedals(medalBody({alliance_id:3,gold:7,silver:0,bronze:12})),{alliance_id:3,gold:7,silver:0,bronze:12})});
+test('Medals require a session, replace one alliance total and leave the others intact',async()=>{const {db,binding}=database();const env={DB:binding,...creds};
+ const body=medalBody({alliance_id:2,gold:3,silver:1,bronze:0});
+ assert.equal((await call(env,'/api/admin/medals','POST',body)).status,401);
+ assert.equal((await call(env,'/api/admin/medals','POST',body,{Cookie:'admin=not-a-token'})).status,401);
+ assert.equal((await call(env,'/api/admin/medals','POST',body,{...admin,Origin:'https://other.test'})).status,403);
+ assert.equal((await call(env,'/api/admin/medals','POST',medalBody({alliance_id:9}),admin)).status,400);
+ assert.equal((await call(env,'/api/admin/medals','POST',body,admin)).status,200);
+ let snap=await (await call(env,'/api/scoreboard')).json();
+ assert.equal(snap.standings.find(a=>a.id===2).gold,3);
+ assert.equal(snap.standings.find(a=>a.id===2).silver,1);
+ assert.ok(snap.standings.filter(a=>a.id!==2).every(a=>a.gold+a.silver+a.bronze===0),'ghi mot lien minh khong duoc dung hai lien minh con lai');
+ assert.equal((await call(env,'/api/admin/medals','POST',medalBody({alliance_id:2,gold:0,silver:0,bronze:5}),admin)).status,200);
+ snap=await (await call(env,'/api/scoreboard')).json();
+ assert.equal(snap.standings.find(a=>a.id===2).gold,0,'ghi de phai thay ca ba loai, khong cong don');
+ assert.equal(snap.standings.find(a=>a.id===2).bronze,5);db.close()});
+test('Medals can be written on a database that has never been seeded',async()=>{const {db,binding}=database();const env={DB:binding,...creds};
+ assert.equal((await call(env,'/api/admin/medals','POST',medalBody({alliance_id:1,gold:2}),admin)).status,200);
+ const snap=await (await call(env,'/api/scoreboard')).json();
+ assert.equal(snap.standings.find(a=>a.id===1).gold,2,'UPDATE tren DB chua seed se khop 0 dong neu thieu seed()');db.close()});
