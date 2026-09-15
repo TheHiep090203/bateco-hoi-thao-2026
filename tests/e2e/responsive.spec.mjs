@@ -24,6 +24,10 @@ function credentials(){
   }catch{ return null }
 }
 
+const TUG_PAIRS = [
+  'Liên minh TIÊN PHONG – Đội hình 10 người chính thức đối đầu Liên minh BỨT PHÁ',
+  'Liên minh CHINH PHỤC – Đội hình 10 người chính thức đối đầu Liên minh TIÊN PHONG',
+];
 const TEAMS = [
   'Liên minh Thăng Long – Đội tuyển Pickleball số 1',
   'Liên minh Vạn Xuân – Đội tuyển Pickleball số 2',
@@ -60,9 +64,9 @@ async function seed(page, origin){
   expect(r.status(), await r.text()).toBe(200);
   // draws và bracket ghi đè theo sport_id nên chạy lại nhiều lần vẫn cho cùng trạng thái.
   const d = await page.request.post('/api/admin/draws', { headers:{Origin:origin}, data:{
-    sport_id: 1, rows: [
-      ['Bảng A', TEAMS[0], TEAMS[1], 'Sân số 1 – Nhà thi đấu trung tâm'],
-      ['Bảng B', TEAMS[2], TEAMS[3], 'Sân số 2 – Nhà thi đấu trung tâm'],
+    sport_id: TUG + 1, rows: [
+      ['Bảng A', TUG_PAIRS[0], 'Lượt 1 – thi đấu hai hiệp thắng một', 'Sân kéo co số 1 – Nhà thi đấu trung tâm'],
+      ['Bảng B', TUG_PAIRS[1], 'Lượt 2 – thi đấu hai hiệp thắng một', 'Sân kéo co số 2 – Nhà thi đấu trung tâm'],
     ] } });
   expect(d.status(), await d.text()).toBe(200);
   const b = await page.request.post('/api/admin/bracket', { headers:{Origin:origin}, data:{
