@@ -11,23 +11,58 @@ function credentials(){
   }catch{ return null }
 }
 
-test('tab Pickleball giữ bảng vòng loại và thêm sơ đồ loại trực tiếp 8 đội', async ({ page }) => {
+test('tab Pickleball chỉ hiện sơ đồ loại trực tiếp, không còn bảng vòng loại', async ({ page }) => {
   await page.goto('/');
   await page.locator('#draw-tab-2').click();
-  await expect(page.locator('#draw-panel .draw-sheet')).toBeVisible();
   await expect(page.locator('#draw-panel .bracket-sheet')).toBeVisible();
+  await expect(page.locator('#draw-panel .draw-sheet'), 'Pickleball dùng sơ đồ nên không được kèm bảng vòng loại').toHaveCount(0);
   // 8 suất + 4 ô bán kết + NHẤT + NHÌ
   await expect(page.locator('.bracket-slot')).toHaveCount(14);
   await expect(page.locator('.bracket-tag')).toHaveCount(4);
 });
 
-test('4 môn còn lại không có sơ đồ', async ({ page }) => {
+test('4 môn còn lại chỉ hiện bảng đấu và chỉ hiện nút Nhập bảng đấu', async ({ page }) => {
   await page.goto('/');
   for (const i of [0, 1, 3, 4]) {
     await page.locator(`#draw-tab-${i}`).click();
     await expect(page.locator('#draw-panel .draw-sheet')).toBeVisible();
-    await expect(page.locator('#draw-panel .bracket-sheet')).toHaveCount(0);
+    await expect(page.locator('#draw-panel .bracket-sheet'), `tab ${i} không dùng sơ đồ`).toHaveCount(0);
+    await expect(page.locator('#bang-dau [data-entry="draw"]'), `tab ${i} phải hiện nút Nhập bảng đấu`).toBeVisible();
+    await expect(page.locator('#bang-dau [data-entry="bracket"]'), `tab ${i} không được hiện nút Nhập sơ đồ`).toBeHidden();
   }
+});
+
+test('lúc mới tải trang và mỗi lần đổi tab, đúng một nút nhập liệu hiện ra', async ({ page }) => {
+  await page.goto('/');
+  const draw = page.locator('#bang-dau [data-entry="draw"]');
+  const bracket = page.locator('#bang-dau [data-entry="bracket"]');
+  await expect(draw, 'tab mặc định là Kéo co nên phải hiện nút Nhập bảng đấu').toBeVisible();
+  await expect(bracket, 'tab mặc định là Kéo co nên phải ẩn nút Nhập sơ đồ').toBeHidden();
+  for (const i of [2, 0, 2, 4, 2]) {
+    await page.locator(`#draw-tab-${i}`).click();
+    const pickle = i === 2;
+    await expect(draw, `tab ${i}: nút Nhập bảng đấu phải ${pickle ? 'ẩn' : 'hiện'}`).toBeVisible({ visible: !pickle });
+    await expect(bracket, `tab ${i}: nút Nhập sơ đồ phải ${pickle ? 'hiện' : 'ẩn'}`).toBeVisible({ visible: pickle });
+  }
+});
+
+test('form nhập bảng đấu bỏ Pickleball nhưng giữ nguyên chỉ số môn của 4 môn còn lại', async ({ page }) => {
+  const creds = credentials();
+  test.skip(!creds, 'Cần .env.local có ADMIN_USER và ADMIN_PASS');
+
+  await page.goto('/');
+  const origin = new URL(page.url()).origin;
+  expect((await page.request.post('/api/admin/login', { headers: { Origin: origin }, data: creds })).status()).toBe(200);
+
+  await page.reload();
+  await expect(page.locator('#huy-chuong tbody tr')).toHaveCount(3, { timeout: 15000 });
+  await page.locator('#bang-dau [data-entry="draw"]').click();
+
+  const options = page.locator('#entry-dialog #draw-sport option');
+  await expect(options).toHaveCount(4);
+  expect(await options.evaluateAll(els => els.map(e => e.value)),
+    'value phải là chỉ số gốc, đánh số lại sẽ ghi lệch sport_id').toEqual(['0', '1', '3', '4']);
+  expect((await options.allTextContents()).join(' | ')).not.toContain('Pickleball');
 });
 
 test('người xem ẩn danh không thấy bất kỳ nút Xóa nào', async ({ page }) => {

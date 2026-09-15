@@ -76,8 +76,8 @@ function renderMedalForm(){entryTitle.textContent='Nhập tổng huy chương';
   catch(err){if(err.status===409){await sync(true);load()}entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Bấm lưu lại để kiểm tra.':err.message}}}
 function renderDrawForm(){entryTitle.textContent='Nhập bảng đấu';
  const active=document.querySelector('#bang-dau [data-draw][aria-selected="true"]');
- let sport=active?Number(active.dataset.draw):0,dirty=false;
- entryBody.innerHTML=`<label>Môn thi đấu<select id="draw-sport">${competitionViews.map((v,i)=>`<option value="${i}">${entryEsc(v.label)}</option>`).join('')}</select></label><p class="muted">Lưu sẽ thay thế toàn bộ bảng đấu của môn này.</p><div id="draw-rows"></div><div class="actions"><button class="button" type="button" id="draw-add">Thêm dòng</button><button class="button orange" type="button" id="draw-save">Lưu bảng đấu</button></div><p id="entry-status" role="status"></p>`;
+ let sport=active&&Number(active.dataset.draw)!==2?Number(active.dataset.draw):0,dirty=false;
+ entryBody.innerHTML=`<label>Môn thi đấu<select id="draw-sport">${competitionViews.map((v,i)=>i===2?'':`<option value="${i}">${entryEsc(v.label)}</option>`).join('')}</select></label><p class="muted">Lưu sẽ thay thế toàn bộ bảng đấu của môn này.</p><div id="draw-rows"></div><div class="actions"><button class="button" type="button" id="draw-add">Thêm dòng</button><button class="button orange" type="button" id="draw-save">Lưu bảng đấu</button></div><p id="entry-status" role="status"></p>`;
  const select=entryBody.querySelector('#draw-sport'),host=entryBody.querySelector('#draw-rows'),status=entryBody.querySelector('#entry-status');
  select.value=String(sport);
  const stored=()=>(liveData.draws||[]).filter(d=>d.sport_id===sport+1).map(d=>[d.c1,d.c2,d.c3,d.c4]);
