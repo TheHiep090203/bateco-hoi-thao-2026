@@ -15,6 +15,19 @@ export function parseRuleDoc(doc){const blocks=[];let table=null;const split=t=>
   else{table=null;blocks.push({type:'p',text:line})}});
  const quick=[];split(doc.quick).forEach((raw,i)=>{const line=raw.trim();if(line)quick.push(ruleCells(line,'Thông tin nhanh',i+1))});
  return {title:String(doc.title??'').trim(),quick,notes:split(doc.notes).map(l=>l.trim()).filter(Boolean),blocks}}
+export function parseSchedule(text){const rows=[];
+ String(text??'').split(/\r?\n/).forEach((raw,i)=>{const line=raw.trim();if(!line)return;
+  const cells=line.split('|').map(c=>c.trim());
+  if(cells.length<2||cells.length>3||!cells[0]||!cells[1])throw Error(`Lịch trình (dòng ${i+1}): cần đúng dạng “giờ | hoạt động”, thêm “| nhãn” nếu muốn gắn nhãn.`);
+  rows.push(cells.length===3&&cells[2]?cells:[cells[0],cells[1]])});
+ return rows}
+export function validateSchedule(body){if(!body||typeof body!=='object'||Array.isArray(body))throw Error('Dữ liệu không hợp lệ.');
+ const text=body.text;if(typeof text!=='string')throw Error('Lịch trình: cần nhập văn bản.');
+ if(text.length>4000)throw Error('Lịch trình: tối đa 4000 ký tự.');
+ const rows=parseSchedule(text);
+ if(!rows.length)throw Error('Lịch trình: cần ít nhất 01 dòng.');
+ if(rows.length>40)throw Error('Lịch trình: tối đa 40 dòng.');
+ return {text,rows}}
 export function validateRules(body){if(!body||typeof body!=='object'||Array.isArray(body))throw Error('Dữ liệu không hợp lệ.');
  if(!RULE_KEYS.includes(body.key))throw Error('Tài liệu luật không hợp lệ.');const doc={key:body.key};
  for(const [field,label,max] of [['title','Tên luật',120],['quick','Thông tin nhanh',4000],['notes','Lưu ý quan trọng',4000],['full','Toàn văn luật',16000]]){

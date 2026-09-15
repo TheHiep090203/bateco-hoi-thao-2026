@@ -5,3 +5,4 @@ export const results = sqliteTable('results', {id:text('id').primaryKey(),sportI
 export const draws = sqliteTable('draws', {id:text('id').primaryKey(),sportId:integer('sport_id').notNull().references(()=>sports.id),ord:integer('ord').notNull(),c1:text('c1').notNull().default(''),c2:text('c2').notNull().default(''),c3:text('c3').notNull().default(''),c4:text('c4').notNull().default('')},t=>[index('draws_sport_ord').on(t.sportId,t.ord)]);
 export const brackets = sqliteTable('brackets', {sportId:integer('sport_id').primaryKey().references(()=>sports.id),data:text('data').notNull(),updatedAt:text('updated_at').notNull()});
 export const rules = sqliteTable('rules', {ruleKey:text('rule_key').primaryKey(),data:text('data').notNull(),updatedAt:text('updated_at').notNull()});
+export const schedule = sqliteTable('schedule', {id:integer('id').primaryKey(),data:text('data').notNull(),updatedAt:text('updated_at').notNull()});

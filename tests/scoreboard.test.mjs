@@ -1,4 +1,4 @@
-import {test} from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync} from 'node:sqlite';import fs from 'node:fs';import worker from '../server/worker.mjs';import {standings,allianceData,validateResult,validateDraws,validateBracket,validateMedals,parseRuleDoc,validateRules,RULE_KEYS,safeEqual,signSession} from '../server/domain.mjs';
+import {test} from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync} from 'node:sqlite';import fs from 'node:fs';import worker from '../server/worker.mjs';import {standings,allianceData,validateResult,validateDraws,validateBracket,validateMedals,parseRuleDoc,validateRules,parseSchedule,validateSchedule,RULE_KEYS,safeEqual,signSession} from '../server/domain.mjs';
 function database(){const db=new DatabaseSync(':memory:');for(const f of fs.readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(fs.readFileSync('drizzle/'+f,'utf8'));const binding={prepare(sql){return {args:[],bind(...args){this.args=args;return this},async first(){return db.prepare(sql).get(...this.args)||null},async run(){const r=db.prepare(sql).run(...this.args);return {success:true,meta:{changes:r.changes}}},async all(){return {results:db.prepare(sql).all(...this.args)}}}},async batch(statements){db.exec('BEGIN');try{const r=[];for(const s of statements){try{r.push(await s.all())}catch{r.push(await s.run())}}db.exec('COMMIT');return r}catch(e){db.exec('ROLLBACK');throw e}}};return {db,binding}}
 const origin='https://scoreboard.test';const SECRET='test-session-secret';
 const creds={ADMIN_USER:'bateco',ADMIN_PASS:'123',SESSION_SECRET:SECRET};
@@ -256,3 +256,73 @@ test('A missing rules table never takes the scoreboard down',async()=>{const {db
  const rules=await call(env,'/api/rules');
  assert.equal(rules.status,200,'luật hỏng phải trả danh sách rỗng, không phải 500');
  assert.deepEqual(await rules.json(),{rules:[]});db.close()});
+const scheduleText=['07:30 – 08:00 | Tập trung','14:00 – 17:30 | Bóng đá Nam | BATECO CUP'].join('\n');
+test('Schedule text parsing keeps row order, treats the third cell as an optional label and skips blank lines',()=>{
+ assert.deepEqual(parseSchedule(scheduleText),[['07:30 – 08:00','Tập trung'],['14:00 – 17:30','Bóng đá Nam','BATECO CUP']]);
+ assert.deepEqual(parseSchedule('  a | b  \n\n\n  c | d  '),[['a','b'],['c','d']],'khoảng trắng và dòng trống không được sinh ra dòng rỗng');
+ assert.deepEqual(parseSchedule('a | b |'),[['a','b']],'cột nhãn để trống thì bỏ nhãn chứ không báo lỗi');
+ assert.deepEqual(parseSchedule('a | b |   '),[['a','b']]);
+ assert.deepEqual(parseSchedule(''),[]);
+ assert.deepEqual(parseSchedule(null),[])});
+test('Schedule parsing rejects malformed rows and names the offending line',()=>{
+ assert.throws(()=>parseSchedule('thiếu dấu gạch đứng'),/dòng 1/,'một ô không đủ thành một mục lịch trình');
+ assert.throws(()=>parseSchedule('a | b | c | d'),/dòng 1/,'bốn ô phải báo lỗi thay vì âm thầm cắt bớt');
+ assert.throws(()=>parseSchedule(' | b'),/dòng 1/,'thiếu giờ');
+ assert.throws(()=>parseSchedule('a | '),/dòng 1/,'thiếu tên hoạt động');
+ assert.throws(()=>parseSchedule('a | b\nc | d\nsai'),/dòng 3/,'lỗi phải chỉ ra dòng nào sai, không bắt admin dò cả bảng')});
+test('Schedule validation guards type, size and row count',()=>{
+ assert.throws(()=>validateSchedule(null));
+ assert.throws(()=>validateSchedule([]));
+ assert.throws(()=>validateSchedule({text:123}));
+ assert.throws(()=>validateSchedule({text:''}),undefined,'lịch trình rỗng sẽ xoá sạch mục trên trang nên phải chặn');
+ assert.throws(()=>validateSchedule({text:'\n\n  \n'}),undefined,'toàn dòng trắng cũng là rỗng');
+ assert.throws(()=>validateSchedule({text:'a | b\n'.repeat(41)}),/40 dòng/);
+ assert.throws(()=>validateSchedule({text:'a | '+'x'.repeat(4000)}),/4000 ký tự/);
+ const ok=validateSchedule({text:scheduleText});
+ assert.equal(ok.text,scheduleText,'văn bản thô phải được giữ nguyên để admin sửa tiếp');
+ assert.equal(ok.rows.length,2)});
+test('Serialising the built-in schedule and parsing it back reproduces every row',()=>{
+ const schedule=clientConst('schedule');
+ assert.equal(schedule.length,9);
+ const text=schedule.map(r=>r.join(' | ')).join('\n');
+ assert.deepEqual(parseSchedule(text),schedule,'lịch trình nướng sẵn phải round-trip qua đúng định dạng admin nhập')});
+test('Rendering the built-in schedule keeps every row visible as before, with HTML characters escaped',()=>{
+ const schedule=clientConst('schedule');
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const html=schedule.map(([time,name,tag])=>`<li><span class="timeline-dot"></span><time>${esc(time)}</time><strong>${esc(name)}</strong>${tag?`<span class="pill">${esc(tag)}</span>`:''}</li>`).join('');
+ assert.equal((html.match(/<li>/g)||[]).length,9);
+ assert.equal((html.match(/class="pill"/g)||[]).length,1,'đúng một mục mang nhãn, như bản đang chạy');
+ assert.match(html,/<strong>Bóng đá Nam – BATECO CUP<\/strong><span class="pill">BATECO CUP<\/span>/,'nhãn phải nằm đúng mục bóng đá');
+ assert.match(html,/Pickleball &amp; Esport/,'dấu & được escape, trình duyệt vẫn hiện “Pickleball & Esport”');
+ for(const m of html.matchAll(/<strong>(.*?)<\/strong>/g))assert.doesNotMatch(m[1],/[<>]/,'văn bản lọt ra ngoài vùng an toàn: '+m[1])});
+test('Schedule requires a session and keeps exactly one row',async()=>{const {db,binding}=database();const env={DB:binding,...creds};
+ assert.equal((await call(env,'/api/admin/schedule','POST',{text:scheduleText})).status,401);
+ assert.equal((await call(env,'/api/admin/schedule','POST',{text:scheduleText},{Cookie:'admin=not-a-token'})).status,401);
+ assert.equal((await call(env,'/api/admin/schedule','POST',{text:scheduleText},{...admin,Origin:'https://other.test'})).status,403);
+ assert.equal((await call(env,'/api/admin/schedule','POST',{text:'sai định dạng'},admin)).status,400);
+ assert.deepEqual(await (await call(env,'/api/schedule')).json(),{schedule:null},'chưa nhập gì thì không có gì phủ lên mặc định');
+ assert.equal((await call(env,'/api/admin/schedule','POST',{text:scheduleText},admin)).status,200);
+ const asAdmin=(await (await call(env,'/api/schedule','GET',undefined,admin)).json()).schedule;
+ assert.equal(asAdmin.text,scheduleText,'admin cần bản thô để sửa tiếp');
+ assert.deepEqual(asAdmin.rows[1],['14:00 – 17:30','Bóng đá Nam','BATECO CUP']);
+ const asGuest=(await (await call(env,'/api/schedule')).json()).schedule;
+ assert.equal('text' in asGuest,false,'khách xem trang không cần bản thô, nó nhân đôi payload');
+ assert.equal(asGuest.rows.length,2);
+ assert.equal((await call(env,'/api/admin/schedule','POST',{text:'09:00 | Chỉ một mục'},admin)).status,200);
+ assert.equal((await (await call(env,'/api/schedule')).json()).schedule.rows.length,1,'lưu lần hai phải thay thế chứ không cộng dồn');
+ assert.equal(db.prepare('SELECT COUNT(*) c FROM schedule').get().c,1,'bảng chỉ được giữ đúng một dòng');db.close()});
+test('Deleting the schedule restores the built-in default instead of leaving a permanent override',async()=>{const {db,binding}=database();const env={DB:binding,...creds};
+ assert.equal((await call(env,'/api/admin/schedule','POST',{text:scheduleText},admin)).status,200);
+ assert.equal((await call(env,'/api/admin/schedule','DELETE',{})).status,401);
+ assert.equal((await call(env,'/api/admin/schedule','DELETE',{},{...admin,Origin:'https://other.test'})).status,403);
+ assert.notEqual((await (await call(env,'/api/schedule')).json()).schedule,null);
+ assert.equal((await call(env,'/api/admin/schedule','DELETE',{},admin)).status,200);
+ assert.deepEqual(await (await call(env,'/api/schedule')).json(),{schedule:null},'xóa xong trang phải lùi về lịch trình nướng sẵn');
+ assert.equal((await call(env,'/api/admin/schedule','DELETE',{},admin)).status,200,'xóa lại lần nữa vẫn phải thành công');db.close()});
+test('A missing schedule table never takes the scoreboard down',async()=>{const {db,binding}=database();
+ db.exec('DROP TABLE schedule');
+ const env={DB:binding,...creds};
+ assert.equal((await call(env,'/api/scoreboard')).status,200,'bảng điểm không được phụ thuộc vào lịch trình');
+ const sched=await call(env,'/api/schedule');
+ assert.equal(sched.status,200);
+ assert.deepEqual(await sched.json(),{schedule:null},'lịch trình hỏng thì trang lùi về mặc định, không báo lỗi cho người xem');db.close()});
