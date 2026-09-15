@@ -63,3 +63,32 @@ test('chưa nhập gì thì mục Luật Thi Đấu vẫn hiện đúng nội du
   await panel.locator('.full-rule summary').click();
   await expect(panel.locator('.rule-reference-table .rule-table-row')).toHaveCount(9);
 });
+test('nút Khôi phục mặc định gỡ hẳn nội dung đã nhập và trả mục Luật về mặc định', async ({ page }) => {
+  test.skip(!credentials(), 'Cần .env.local có ADMIN_USER và ADMIN_PASS');
+  await page.goto('/');
+  const origin = new URL(page.url()).origin;
+  expect((await page.request.post('/api/admin/login', { headers:{Origin:origin}, data:credentials() })).status()).toBe(200);
+
+  const before = (await (await page.request.get('/api/rules')).json()).rules.find(r => r.key === 'tug');
+  test.skip(!!before, 'Kéo co đã bị ghi đè sẵn trong DB local');
+
+  const heading = page.locator('#rules-panel .rules-title h3');
+  await page.locator('#rules-tab-0').click();
+  await expect(heading).toHaveText('Kéo co', { timeout: 15000 });
+
+  await page.locator('#luat-thi-dau .entry-button').click();
+  await page.waitForSelector('#entry-rules');
+  await page.locator('#entry-rules [name=title]').fill('Kéo co ' + MARKER);
+  await page.locator('#rules-save').click();
+  await expect(page.locator('#entry-status')).toHaveText('Đã lưu. Mục Luật Thi Đấu đã cập nhật.', { timeout: 15000 });
+  await expect(heading).toHaveText('Kéo co ' + MARKER);
+
+  await page.locator('#rules-reset').click();
+  await page.locator('#confirm-yes').click();
+  await expect(page.locator('#entry-status')).toHaveText('Đã khôi phục nội dung mặc định.', { timeout: 15000 });
+
+  await expect(heading, 'khôi phục phải trả mục Luật về nội dung nướng sẵn').toHaveText('Kéo co');
+  await expect(page.locator('#entry-rules [name=title]')).toHaveValue('Kéo co');
+  expect((await (await page.request.get('/api/rules')).json()).rules.length,
+    'khôi phục phải xoá hẳn dòng, không phải ghi đè bằng bản sao của mặc định').toBe(0);
+});
