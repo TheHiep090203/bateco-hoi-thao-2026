@@ -109,3 +109,6 @@ loadRules().then(refreshRulesPanel);
 loadSchedule().then(renderSchedule);
 setInterval(()=>{if(!document.hidden){refreshRules();refreshSchedule()}},60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshRules();refreshSchedule()}});
+if(window.IntersectionObserver&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
+ const revealer=new IntersectionObserver((entries,obs)=>{for(const e of entries)if(e.isIntersecting){e.target.classList.add('bt-shown');obs.unobserve(e.target)}},{rootMargin:'0px 0px -8% 0px'});
+ for(const s of document.querySelectorAll('.section:not(#bang-dau):not(#ket-qua)')){s.classList.add('bt-reveal');revealer.observe(s)}}
