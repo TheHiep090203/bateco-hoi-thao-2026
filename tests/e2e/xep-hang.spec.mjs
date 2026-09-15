@@ -19,8 +19,11 @@ test('bảng tổng sắp xếp theo tổng huy chương và render đúng thứ
   expect((await page.request.post('/api/admin/login', { headers:{Origin:origin}, data:credentials() })).status()).toBe(200);
 
   const snapshot = async () => (await page.request.get('/api/scoreboard')).json();
-  const setMedals = (alliance_id, gold, silver, bronze) =>
-    page.request.post('/api/admin/medals', { headers:{Origin:origin}, data:{ alliance_id, gold, silver, bronze } });
+  const setMedals = async (alliance_id, gold, silver, bronze) => {
+    const now = (await snapshot()).alliances.find(a => a.id === alliance_id);
+    return page.request.post('/api/admin/medals', { headers:{Origin:origin}, data:{ alliance_id, gold, silver, bronze,
+      prev: { gold: now.gold, silver: now.silver, bronze: now.bronze } } });
+  };
 
   const before = (await snapshot()).alliances.map(a => [a.id, a.gold, a.silver, a.bronze]);
 

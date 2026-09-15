@@ -59,7 +59,10 @@ if(path.startsWith('/api/')){
   try{saved=previous?await env.DB.prepare('UPDATE results SET sport_id=?,event=?,participants=?,score=?,updated_at=?,updated_by=?,revision=revision+1 WHERE id=? AND revision=?').bind(r.sport_id,r.event,r.participants,r.score,now,uid,r.id,r.revision).run():await env.DB.prepare('INSERT INTO results (id,sport_id,event,participants,score,revision,updated_at,updated_by) VALUES (?,?,?,?,?,1,?,?)').bind(r.id,r.sport_id,r.event,r.participants,r.score,now,uid).run()}catch(e){if(String(e).includes('UNIQUE'))return json({error:'Trận/Phần thi này đã tồn tại. Hãy chọn Sửa kết quả trong danh sách.'},409);throw e}
   if(!saved.meta.changes)return json({error:'Kết quả vừa được sửa ở nơi khác. Hãy tải lại danh sách.'},409);return json({ok:true,id:r.id,revision:r.revision+1});
  }
- if(path==='/api/rules'&&request.method==='GET')return json({rules:await ruleRows(env)});
+ if(path==='/api/rules'&&request.method==='GET'){const rows=await ruleRows(env);
+  if(await isAdmin(request,env))return json({rules:rows});
+  return json({rules:rows.map(({raw,...rest})=>rest)});
+ }
  if(path==='/api/admin/rules'&&request.method==='DELETE'){
   if(!await isAdmin(request,env))return json({error:'Vui lòng đăng nhập.'},401);
   if(request.headers.get('Origin')!==url.origin||!request.headers.get('Content-Type')?.startsWith('application/json'))return json({error:'Yêu cầu không hợp lệ.'},403);
@@ -83,7 +86,8 @@ if(path.startsWith('/api/')){
   const raw=await request.text();if(raw.length>1000)return json({error:'Nội dung quá dài.'},413);
   let m;try{m=validateMedals(JSON.parse(raw))}catch(e){return json({error:e.message},400)}
   await seed(env);
-  await env.DB.prepare('UPDATE alliances SET gold=?,silver=?,bronze=? WHERE id=?').bind(m.gold,m.silver,m.bronze,m.alliance_id).run();
+  const saved=await env.DB.prepare('UPDATE alliances SET gold=?,silver=?,bronze=? WHERE id=? AND gold=? AND silver=? AND bronze=?').bind(m.gold,m.silver,m.bronze,m.alliance_id,m.prev.gold,m.prev.silver,m.prev.bronze).run();
+  if(!saved.meta.changes)return json({error:'Huy chương của liên minh này vừa được sửa ở nơi khác. Số liệu trên form đã được tải lại, hãy kiểm tra rồi nhập lại.'},409);
   return json({ok:true,alliance_id:m.alliance_id});
  }
  if(path==='/api/admin/draws'&&request.method==='POST'){

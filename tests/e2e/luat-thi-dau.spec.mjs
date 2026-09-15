@@ -89,6 +89,6 @@ test('nút Khôi phục mặc định gỡ hẳn nội dung đã nhập và tr�
 
   await expect(heading, 'khôi phục phải trả mục Luật về nội dung nướng sẵn').toHaveText('Kéo co');
   await expect(page.locator('#entry-rules [name=title]')).toHaveValue('Kéo co');
-  expect((await (await page.request.get('/api/rules')).json()).rules.length,
-    'khôi phục phải xoá hẳn dòng, không phải ghi đè bằng bản sao của mặc định').toBe(0);
+  expect((await (await page.request.get('/api/rules')).json()).rules.some(r => r.key === 'tug'),
+    'khôi phục phải xoá hẳn dòng, không phải ghi đè bằng bản sao của mặc định').toBe(false);
 });

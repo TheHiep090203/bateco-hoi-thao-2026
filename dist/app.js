@@ -45,6 +45,7 @@ function ruleRawText(key){const o=ruleOverrides[key];if(o)return o.raw;const bas
  return base?{title:base.title,quick:pairsToText(base.quick),notes:base.notes.join('\n'),full:blocksToText(fullRules[base.key])}:{title:'',quick:'',notes:'',full:''}}
 async function loadRules(){try{const r=await fetch('/api/rules',{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!r.ok)return;
   const d=await r.json();if(!Array.isArray(d.rules))return;const next={};for(const row of d.rules)next[row.key]=row;ruleOverrides=next}catch{}}
+async function refreshRules(){const before=JSON.stringify(ruleOverrides);await loadRules();if(JSON.stringify(ruleOverrides)!==before)refreshRulesPanel()}
 function refreshRulesPanel(){const active=document.querySelector('#luat-thi-dau [data-rules][aria-selected="true"]');renderSportPanel('rules',active?Number(active.dataset.rules):0)}
 function fullRuleMarkup(blocks){let list=false;let out='';const close=()=>{if(list){out+='</ul>';list=false}};
  for(const block of blocks){if(block.type==='table'){close();out+='<div class="rule-reference-table">'+block.rows.map((row,i)=>i===0?`<div class="rule-table-head">${row.map(officialText).join(' / ')}</div>`:`<div class="rule-table-row"><strong>${officialText(row[0])}</strong><span>${officialText(row[1])}</span></div>`).join('')+'</div>'}else if(/^\d+[.\s]/.test(block.text)){close();out+=`<h4>${officialText(block.text)}</h4>`}else if(/^(LUẬT THI ĐẤU|HỘI THAO BATECO|ĐÔI NAM NỮ)/.test(block.text)){close();out+=`<p class="rule-original-title">${officialText(block.text)}</p>`}else{if(!list){out+='<ul>';list=true}out+=`<li>${officialText(block.text)}</li>`}}close();return out;
@@ -95,3 +96,5 @@ const navLinks=[...mainNav.querySelectorAll('a')];
 function updateActiveNav(){const boundary=document.querySelector('header').getBoundingClientRect().height+40;let active=null;for(const a of navLinks){if(document.querySelector(a.hash).getBoundingClientRect().top<=boundary)active=a}navLinks.forEach(a=>{if(a===active)a.setAttribute('aria-current','location');else a.removeAttribute('aria-current')})}
 window.addEventListener('scroll',updateActiveNav,{passive:true});window.addEventListener('resize',updateActiveNav);updateActiveNav();
 loadRules().then(refreshRulesPanel);
+setInterval(()=>{if(!document.hidden)refreshRules()},60000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshRules()});

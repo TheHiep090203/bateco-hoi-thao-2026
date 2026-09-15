@@ -6,7 +6,7 @@ const admin={Cookie:'admin='+await signSession(SECRET,Date.now()+3600000)};
 function call(env,path,method='GET',body,headers={}){return worker.fetch(new Request(origin+path,{method,headers:{...(body?{'Origin':origin,'Content-Type':'application/json'}:{}),...headers},body:body?JSON.stringify(body):undefined}),env)}
 const result=(overrides={})=>({id:'00000000-0000-4000-8000-000000000001',sport_id:1,event:'Nội dung kiểm thử',participants:'Đội kiểm thử',score:'2–1',revision:0,...overrides});
 const alliance=(id,gold=0,silver=0,bronze=0)=>({...allianceData.find(a=>a.id===id),gold,silver,bronze});
-const medalBody=(overrides={})=>({alliance_id:1,gold:0,silver:0,bronze:0,...overrides});
+const medalBody=(overrides={})=>({alliance_id:1,gold:0,silver:0,bronze:0,prev:{gold:0,silver:0,bronze:0},...overrides});
 test('Ranking uses total medals first, then gold, silver, bronze',()=>{const rows=standings([alliance(1,1,0,0),alliance(2,1,2,0),alliance(3,0,0,2)]);assert.deepEqual(rows.map(r=>r.id),[2,3,1]);
  const heavy=standings([alliance(1,1,0,0),alliance(2,0,5,5),alliance(3)]);assert.deepEqual(heavy.map(r=>r.id),[2,1,3]);assert.deepEqual(heavy.map(r=>r.rank),[1,2,3]);
  const tieBreak=standings([alliance(1,1,0,0),alliance(2,0,1,0),alliance(3)]);assert.deepEqual(tieBreak.map(r=>r.id),[1,2,3]);assert.deepEqual(tieBreak.map(r=>r.rank),[1,2,3]);
@@ -142,7 +142,10 @@ test('Medal validation rejects unknown alliance, negative, fractional and oversi
  assert.throws(()=>validateMedals(medalBody({bronze:1000})));
  assert.throws(()=>validateMedals(medalBody({gold:null})));
  assert.throws(()=>validateMedals([]));
- assert.deepEqual(validateMedals(medalBody({alliance_id:3,gold:7,silver:0,bronze:12})),{alliance_id:3,gold:7,silver:0,bronze:12})});
+ assert.throws(()=>validateMedals(medalBody({prev:undefined})),undefined,'thiếu số liệu trước đó thì không thể phát hiện ghi đè');
+ assert.throws(()=>validateMedals(medalBody({prev:{gold:0,silver:0}})));
+ assert.throws(()=>validateMedals(medalBody({prev:{gold:-1,silver:0,bronze:0}})));
+ assert.deepEqual(validateMedals(medalBody({alliance_id:3,gold:7,silver:0,bronze:12})),{alliance_id:3,gold:7,silver:0,bronze:12,prev:{gold:0,silver:0,bronze:0}})});
 test('Medals require a session, replace one alliance total and leave the others intact',async()=>{const {db,binding}=database();const env={DB:binding,...creds};
  const body=medalBody({alliance_id:2,gold:3,silver:1,bronze:0});
  assert.equal((await call(env,'/api/admin/medals','POST',body)).status,401);
@@ -154,7 +157,7 @@ test('Medals require a session, replace one alliance total and leave the others 
  assert.equal(snap.standings.find(a=>a.id===2).gold,3);
  assert.equal(snap.standings.find(a=>a.id===2).silver,1);
  assert.ok(snap.standings.filter(a=>a.id!==2).every(a=>a.gold+a.silver+a.bronze===0),'ghi mot lien minh khong duoc dung hai lien minh con lai');
- assert.equal((await call(env,'/api/admin/medals','POST',medalBody({alliance_id:2,gold:0,silver:0,bronze:5}),admin)).status,200);
+ assert.equal((await call(env,'/api/admin/medals','POST',medalBody({alliance_id:2,gold:0,silver:0,bronze:5,prev:{gold:3,silver:1,bronze:0}}),admin)).status,200);
  snap=await (await call(env,'/api/scoreboard')).json();
  assert.equal(snap.standings.find(a=>a.id===2).gold,0,'ghi de phai thay ca ba loai, khong cong don');
  assert.equal(snap.standings.find(a=>a.id===2).bronze,5);db.close()});
@@ -162,6 +165,18 @@ test('Medals can be written on a database that has never been seeded',async()=>{
  assert.equal((await call(env,'/api/admin/medals','POST',medalBody({alliance_id:1,gold:2}),admin)).status,200);
  const snap=await (await call(env,'/api/scoreboard')).json();
  assert.equal(snap.standings.find(a=>a.id===1).gold,2,'UPDATE tren DB chua seed se khop 0 dong neu thieu seed()');db.close()});
+test('Medal totals refuse a stale overwrite instead of silently discarding the other admin\'s entry',async()=>{const {db,binding}=database();const env={DB:binding,...creds};
+ assert.equal((await call(env,'/api/admin/medals','POST',medalBody({alliance_id:1,gold:3,silver:2,bronze:1}),admin)).status,200);
+ const stale=medalBody({alliance_id:1,gold:3,silver:2,bronze:2,prev:{gold:3,silver:2,bronze:1}});
+ assert.equal((await call(env,'/api/admin/medals','POST',medalBody({alliance_id:1,gold:4,silver:2,bronze:1,prev:{gold:3,silver:2,bronze:1}}),admin)).status,200);
+ const conflict=await call(env,'/api/admin/medals','POST',stale,admin);
+ assert.equal(conflict.status,409,'form mở từ trước không được ghi đè số liệu vừa nhập ở nơi khác');
+ assert.match((await conflict.json()).error,/vừa được sửa ở nơi khác/);
+ let snap=await (await call(env,'/api/scoreboard')).json();
+ assert.equal(snap.standings.find(a=>a.id===1).gold,4,'HCV của lần ghi sau phải còn nguyên');
+ assert.equal((await call(env,'/api/admin/medals','POST',medalBody({alliance_id:1,gold:4,silver:2,bronze:2,prev:{gold:4,silver:2,bronze:1}}),admin)).status,200,'nhập lại với số liệu mới phải thành công');
+ snap=await (await call(env,'/api/scoreboard')).json();
+ assert.equal(snap.standings.find(a=>a.id===1).bronze,2);db.close()});
 function clientConst(name){const L=fs.readFileSync('dist/app.js','utf8').split(/\r?\n/);const start=L.findIndex(l=>l.startsWith('const '+name+'='));
  if(start<0)throw Error('khong tim thay '+name+' trong dist/app.js');
  for(let end=start;end<L.length;end++){try{return new Function(L.slice(start,end+1).join('\n')+';return '+name)()}catch{}}
@@ -185,6 +200,8 @@ test('Rule validation rejects unknown document, wrong types, oversized text and 
  assert.throws(()=>validateRules(ruleDoc({full:'x'.repeat(16001)})));
  assert.throws(()=>validateRules(ruleDoc({quick:'thiếu dấu gạch đứng'})),undefined,'Thông tin nhanh bắt buộc dạng nhãn | nội dung');
  assert.throws(()=>validateRules(ruleDoc({full:'A | B | C'})),undefined,'dòng bảng ba ô phải báo lỗi thay vì âm thầm cắt bớt');
+ assert.throws(()=>validateRules(ruleDoc({full:'Dòng một\nDòng hai\nA | B | C'})),/dòng 3/,'lỗi phải chỉ ra dòng nào sai, không bắt admin dò 300 dòng');
+ assert.throws(()=>validateRules(ruleDoc({quick:'ổn | rồi\nthiếu dấu gạch'})),/dòng 2/);
  assert.throws(()=>validateRules([]));
  const ok=validateRules(ruleDoc());assert.equal(ok.key,'tug');assert.equal(ok.full,'LUẬT THI ĐẤU KÉO CO')});
 test('Serialising the built-in rules and parsing them back reproduces every document',()=>{
@@ -205,12 +222,15 @@ test('Rules require a session and keep exactly one row per document',async()=>{c
  assert.equal((await call(env,'/api/admin/rules','POST',ruleDoc({key:'khong-co'}),admin)).status,400);
  assert.deepEqual(await (await call(env,'/api/rules')).json(),{rules:[]},'chưa nhập gì thì không có dòng nào để phủ lên mặc định');
  assert.equal((await call(env,'/api/admin/rules','POST',ruleDoc({full:'1. Mục\nNội dung | Quy định\nSố hiệp | 01'}),admin)).status,200);
- let r=(await (await call(env,'/api/rules')).json()).rules;
+ let r=(await (await call(env,'/api/rules','GET',undefined,admin)).json()).rules;
  assert.equal(r.length,1);assert.equal(r[0].key,'tug');
  assert.deepEqual(r[0].blocks,[{type:'p',text:'1. Mục'},{type:'table',rows:[['Nội dung','Quy định'],['Số hiệp','01']]}]);
  assert.equal(r[0].raw.full,'1. Mục\nNội dung | Quy định\nSố hiệp | 01','văn bản thô phải trả về nguyên vẹn để form nạp lại');
+ const publicRules=(await (await call(env,'/api/rules')).json()).rules;
+ assert.equal('raw' in publicRules[0],false,'khách xem trang không cần bản thô, nó nhân đôi payload');
+ assert.ok(publicRules[0].blocks.length>0,'khách vẫn phải nhận đủ nội dung đã parse');
  assert.equal((await call(env,'/api/admin/rules','POST',ruleDoc({title:'Kéo co sửa lần hai'}),admin)).status,200);
- r=(await (await call(env,'/api/rules')).json()).rules;
+ r=(await (await call(env,'/api/rules','GET',undefined,admin)).json()).rules;
  assert.equal(r.length,1,'ghi đè phải thay cả dòng, không để lại bản ghi thứ hai');
  assert.equal(r[0].title,'Kéo co sửa lần hai');
  assert.equal((await call(env,'/api/admin/rules','POST',ruleDoc({key:'football',title:'Bóng đá Nam'}),admin)).status,200);

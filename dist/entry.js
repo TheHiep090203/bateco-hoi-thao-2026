@@ -5,7 +5,7 @@ document.body.insertAdjacentHTML('beforeend','<dialog id="entry-dialog" class="a
 const entryDialog=document.querySelector('#entry-dialog'),entryBody=document.querySelector('#entry-body'),entryTitle=document.querySelector('#entry-title');
 let entryTrigger=null,entryKind='result',entryBusy=false;
 
-async function entryApi(path,options){const response=await fetch(path,{cache:'no-store',...options,signal:AbortSignal.timeout(15000)});let value;try{value=await response.json()}catch{throw Error('Không tải được dữ liệu. Vui lòng thử lại.')}if(!response.ok)throw Error(value.error||'Không thể xử lý yêu cầu.');return value}
+async function entryApi(path,options){const response=await fetch(path,{cache:'no-store',...options,signal:AbortSignal.timeout(15000)});let value;try{value=await response.json()}catch{throw Error('Không tải được dữ liệu. Vui lòng thử lại.')}if(!response.ok){const e=Error(value.error||'Không thể xử lý yêu cầu.');e.status=response.status;throw e}return value}
 function entryLock(on){entryBusy=on;document.querySelector('#entry-close').disabled=on;entryBody.querySelectorAll('input,select,textarea,button').forEach(c=>c.disabled=on)}
 
 function renderLogin(message){entryTitle.textContent='Đăng nhập để nhập kết quả';document.querySelector('#entry-logout').hidden=true;
@@ -44,7 +44,7 @@ function renderRulesForm(){entryTitle.textContent='Nhập luật thi đấu';
  entryBody.innerHTML=`<label>Tài liệu luật<select id="rule-doc">${RULE_DOCS.map(([k,l])=>`<option value="${k}">${entryEsc(l)}</option>`).join('')}</select></label><p class="muted">Mỗi dòng là một mục. Dòng dạng “cột 1 | cột 2” tạo một dòng bảng; các dòng bảng liền nhau gộp thành một bảng, dòng đầu là tiêu đề. Dòng trống kết thúc bảng.</p><form id="entry-rules"><label>Tên luật<input name="title" maxlength="120" required autocomplete="off"></label><label>Thông tin nhanh<textarea name="quick" rows="5" maxlength="4000"></textarea></label><label>Lưu ý quan trọng<textarea name="notes" rows="4" maxlength="4000"></textarea></label><label>Toàn văn luật<textarea name="full" rows="14" maxlength="16000"></textarea></label><div class="actions"><button class="button orange" type="submit" id="rules-save">Lưu luật</button><button class="button" type="button" id="rules-reset">Khôi phục mặc định</button></div><p id="entry-status" role="status"></p></form>`;
  const select=entryBody.querySelector('#rule-doc'),form=entryBody.querySelector('#entry-rules'),status=entryBody.querySelector('#entry-status');
  const load=()=>{const raw=ruleRawText(key);for(const k of ['title','quick','notes','full'])form.elements[k].value=raw[k]??'';dirty=false};
- load();
+ loadRules().then(load);
  form.oninput=()=>{dirty=true};
  select.onchange=async()=>{if(entryBusy)return;
   if(dirty&&!await confirmDialog('Bỏ các thay đổi chưa lưu của tài liệu trước?','Bỏ thay đổi')){select.value=key;return}
@@ -63,15 +63,16 @@ function renderMedalForm(){entryTitle.textContent='Nhập tổng huy chương';
  entryBody.innerHTML=`<p class="muted">Nhập tổng số huy chương mỗi liên minh đã giành. Lưu sẽ thay cả ba con số của liên minh đang chọn.</p><form id="entry-medal"><label>Liên minh<select name="alliance_id" required></select></label><div class="medal-inputs"><label>Tổng HCV<input name="gold" type="number" min="0" max="999" step="1" required></label><label>Tổng HCB<input name="silver" type="number" min="0" max="999" step="1" required></label><label>Tổng HCĐ<input name="bronze" type="number" min="0" max="999" step="1" required></label></div><div class="actions"><button class="button orange" type="submit" id="medal-save">Lưu huy chương</button></div><p id="entry-status" role="status"></p></form>`;
  const form=entryBody.querySelector('#entry-medal'),status=entryBody.querySelector('#entry-status');
  form.elements.alliance_id.innerHTML=liveData.alliances.map(a=>`<option value="${a.id}">LIÊN MINH ${entryEsc(a.name)}</option>`).join('');
- const load=()=>{const a=liveData.alliances.find(a=>a.id===Number(form.elements.alliance_id.value));for(const k of ['gold','silver','bronze'])form.elements[k].value=String(a?.[k]??0)};
+ let prev={gold:0,silver:0,bronze:0};
+ const load=()=>{const a=liveData.alliances.find(a=>a.id===Number(form.elements.alliance_id.value));prev={gold:a?.gold??0,silver:a?.silver??0,bronze:a?.bronze??0};for(const k of ['gold','silver','bronze'])form.elements[k].value=String(prev[k])};
  load();
  form.elements.alliance_id.onchange=()=>{if(entryBusy)return;load();status.textContent=''};
  form.onsubmit=async e=>{e.preventDefault();if(entryBusy||!form.reportValidity())return;
-  const payload={alliance_id:Number(form.elements.alliance_id.value)};
+  const payload={alliance_id:Number(form.elements.alliance_id.value),prev};
   for(const k of ['gold','silver','bronze'])payload[k]=Number(form.elements[k].value);
   entryLock(true);status.textContent='Đang lưu…';
   try{await entryApi('/api/admin/medals',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});await sync(true);entryLock(false);load();status.textContent='Đã lưu. Bảng tổng sắp đã cập nhật.'}
-  catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Bấm lưu lại để kiểm tra.':err.message}}}
+  catch(err){if(err.status===409){await sync(true);load()}entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Bấm lưu lại để kiểm tra.':err.message}}}
 function renderDrawForm(){entryTitle.textContent='Nhập bảng đấu';
  const active=document.querySelector('#bang-dau [data-draw][aria-selected="true"]');
  let sport=active?Number(active.dataset.draw):0,dirty=false;
