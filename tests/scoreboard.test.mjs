@@ -1,4 +1,4 @@
-import {test} from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync} from 'node:sqlite';import fs from 'node:fs';import worker from '../server/worker.mjs';import {standings,allianceData,validateResult,validateDraws,validateBracket,validateMedals,safeEqual,signSession} from '../server/domain.mjs';
+import {test} from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync} from 'node:sqlite';import fs from 'node:fs';import worker from '../server/worker.mjs';import {standings,allianceData,validateResult,validateDraws,validateBracket,validateMedals,parseRuleDoc,validateRules,RULE_KEYS,safeEqual,signSession} from '../server/domain.mjs';
 function database(){const db=new DatabaseSync(':memory:');for(const f of fs.readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(fs.readFileSync('drizzle/'+f,'utf8'));const binding={prepare(sql){return {args:[],bind(...args){this.args=args;return this},async first(){return db.prepare(sql).get(...this.args)||null},async run(){const r=db.prepare(sql).run(...this.args);return {success:true,meta:{changes:r.changes}}},async all(){return {results:db.prepare(sql).all(...this.args)}}}},async batch(statements){db.exec('BEGIN');try{const r=[];for(const s of statements){try{r.push(await s.all())}catch{r.push(await s.run())}}db.exec('COMMIT');return r}catch(e){db.exec('ROLLBACK');throw e}}};return {db,binding}}
 const origin='https://scoreboard.test';const SECRET='test-session-secret';
 const creds={ADMIN_USER:'bateco',ADMIN_PASS:'123',SESSION_SECRET:SECRET};
@@ -162,3 +162,77 @@ test('Medals can be written on a database that has never been seeded',async()=>{
  assert.equal((await call(env,'/api/admin/medals','POST',medalBody({alliance_id:1,gold:2}),admin)).status,200);
  const snap=await (await call(env,'/api/scoreboard')).json();
  assert.equal(snap.standings.find(a=>a.id===1).gold,2,'UPDATE tren DB chua seed se khop 0 dong neu thieu seed()');db.close()});
+function clientConst(name){const L=fs.readFileSync('dist/app.js','utf8').split(/\r?\n/);const start=L.findIndex(l=>l.startsWith('const '+name+'='));
+ if(start<0)throw Error('khong tim thay '+name+' trong dist/app.js');
+ for(let end=start;end<L.length;end++){try{return new Function(L.slice(start,end+1).join('\n')+';return '+name)()}catch{}}
+ throw Error('khong doc duoc '+name+' tu dist/app.js')}
+const ruleDoc=(overrides={})=>({key:'tug',title:'Kéo co',quick:'Thành phần | 10 VĐV',notes:'Không thay người',full:'LUẬT THI ĐẤU KÉO CO',...overrides});
+test('Rule text parsing keeps blocks in order and groups adjacent pipe rows into one table',()=>{
+ const d=parseRuleDoc({title:' Kéo co ',quick:'Thành phần | 10 VĐV\n\nThể thức | Vòng tròn',notes:'Ý một\n\nÝ hai',full:'LUẬT THI ĐẤU KÉO CO\n1. Thành phần\nMỗi đội 10 VĐV.\nNội dung | Quy định\nSố hiệp | 01\n\nSau bảng'});
+ assert.equal(d.title,'Kéo co');
+ assert.deepEqual(d.quick,[['Thành phần','10 VĐV'],['Thể thức','Vòng tròn']]);
+ assert.deepEqual(d.notes,['Ý một','Ý hai']);
+ assert.deepEqual(d.blocks,[{type:'p',text:'LUẬT THI ĐẤU KÉO CO'},{type:'p',text:'1. Thành phần'},{type:'p',text:'Mỗi đội 10 VĐV.'},{type:'table',rows:[['Nội dung','Quy định'],['Số hiệp','01']]},{type:'p',text:'Sau bảng'}]);
+ assert.deepEqual(parseRuleDoc({title:'x',quick:'',notes:'',full:'A | B\n\nC | D'}).blocks,[{type:'table',rows:[['A','B']]},{type:'table',rows:[['C','D']]}],'dòng trống phải cắt thành hai bảng riêng');
+ assert.deepEqual(parseRuleDoc({title:'x',quick:'',notes:'',full:''}).blocks,[])});
+test('Rule validation rejects unknown document, wrong types, oversized text and malformed table rows',()=>{
+ assert.deepEqual(RULE_KEYS,['tug','men','women','relay','pickle','aoe','football']);
+ assert.throws(()=>validateRules(ruleDoc({key:'khong-co'})));
+ assert.throws(()=>validateRules(ruleDoc({key:undefined})));
+ assert.throws(()=>validateRules(ruleDoc({title:''})));
+ assert.throws(()=>validateRules(ruleDoc({title:'x'.repeat(121)})));
+ assert.throws(()=>validateRules(ruleDoc({full:123})));
+ assert.throws(()=>validateRules(ruleDoc({full:'x'.repeat(16001)})));
+ assert.throws(()=>validateRules(ruleDoc({quick:'thiếu dấu gạch đứng'})),undefined,'Thông tin nhanh bắt buộc dạng nhãn | nội dung');
+ assert.throws(()=>validateRules(ruleDoc({full:'A | B | C'})),undefined,'dòng bảng ba ô phải báo lỗi thay vì âm thầm cắt bớt');
+ assert.throws(()=>validateRules([]));
+ const ok=validateRules(ruleDoc());assert.equal(ok.key,'tug');assert.equal(ok.full,'LUẬT THI ĐẤU KÉO CO')});
+test('Serialising the built-in rules and parsing them back reproduces every document',()=>{
+ const fullRules=clientConst('fullRules'),ruleSummaries=clientConst('ruleSummaries');
+ const blocksToText=clientConst('blocksToText'),pairsToText=clientConst('pairsToText');
+ assert.equal(Object.keys(fullRules).length,6);
+ assert.equal(Object.keys(ruleSummaries).length,6);
+ for(const [k,base] of Object.entries(ruleSummaries)){
+  const d=parseRuleDoc({title:base.title,quick:pairsToText(base.quick),notes:base.notes.join('\n'),full:blocksToText(fullRules[base.key])});
+  assert.equal(d.title,base.title,k+': tên luật lệch');
+  assert.deepEqual(d.quick,base.quick,k+': Thông tin nhanh không round-trip');
+  assert.deepEqual(d.notes,base.notes,k+': Lưu ý quan trọng không round-trip');
+  assert.deepEqual(d.blocks,fullRules[base.key],k+': toàn văn luật không round-trip')}});
+test('Rules require a session and keep exactly one row per document',async()=>{const {db,binding}=database();const env={DB:binding,...creds};
+ assert.equal((await call(env,'/api/admin/rules','POST',ruleDoc())).status,401);
+ assert.equal((await call(env,'/api/admin/rules','POST',ruleDoc(),{Cookie:'admin=not-a-token'})).status,401);
+ assert.equal((await call(env,'/api/admin/rules','POST',ruleDoc(),{...admin,Origin:'https://other.test'})).status,403);
+ assert.equal((await call(env,'/api/admin/rules','POST',ruleDoc({key:'khong-co'}),admin)).status,400);
+ assert.deepEqual(await (await call(env,'/api/rules')).json(),{rules:[]},'chưa nhập gì thì không có dòng nào để phủ lên mặc định');
+ assert.equal((await call(env,'/api/admin/rules','POST',ruleDoc({full:'1. Mục\nNội dung | Quy định\nSố hiệp | 01'}),admin)).status,200);
+ let r=(await (await call(env,'/api/rules')).json()).rules;
+ assert.equal(r.length,1);assert.equal(r[0].key,'tug');
+ assert.deepEqual(r[0].blocks,[{type:'p',text:'1. Mục'},{type:'table',rows:[['Nội dung','Quy định'],['Số hiệp','01']]}]);
+ assert.equal(r[0].raw.full,'1. Mục\nNội dung | Quy định\nSố hiệp | 01','văn bản thô phải trả về nguyên vẹn để form nạp lại');
+ assert.equal((await call(env,'/api/admin/rules','POST',ruleDoc({title:'Kéo co sửa lần hai'}),admin)).status,200);
+ r=(await (await call(env,'/api/rules')).json()).rules;
+ assert.equal(r.length,1,'ghi đè phải thay cả dòng, không để lại bản ghi thứ hai');
+ assert.equal(r[0].title,'Kéo co sửa lần hai');
+ assert.equal((await call(env,'/api/admin/rules','POST',ruleDoc({key:'football',title:'Bóng đá Nam'}),admin)).status,200);
+ assert.equal((await (await call(env,'/api/rules')).json()).rules.length,2);db.close()});
+test('Deleting a rule document restores the built-in default instead of leaving a permanent override',async()=>{const {db,binding}=database();const env={DB:binding,...creds};
+ assert.equal((await call(env,'/api/admin/rules','POST',ruleDoc(),admin)).status,200);
+ assert.equal((await call(env,'/api/admin/rules','DELETE',{key:'tug'})).status,401);
+ assert.equal((await call(env,'/api/admin/rules','DELETE',{key:'tug'},{...admin,Origin:'https://other.test'})).status,403);
+ assert.equal((await call(env,'/api/admin/rules','DELETE',{key:'khong-co'},admin)).status,400);
+ assert.equal((await (await call(env,'/api/rules')).json()).rules.length,1);
+ assert.equal((await call(env,'/api/admin/rules','DELETE',{key:'tug'},admin)).status,200);
+ assert.deepEqual(await (await call(env,'/api/rules')).json(),{rules:[]},'xóa xong phải không còn dòng nào để trang lùi về nội dung nướng sẵn');
+ assert.equal((await call(env,'/api/admin/rules','DELETE',{key:'tug'},admin)).status,200,'xóa lại lần nữa vẫn phải thành công');db.close()});
+test('A missing rules table never takes the scoreboard down',async()=>{const {db,binding}=database();
+ db.exec('DROP TABLE rules');
+ const env={DB:binding,...creds};
+ assert.equal((await call(env,'/api/admin/medals','POST',medalBody({alliance_id:2,gold:3}),admin)).status,200);
+ const response=await call(env,'/api/scoreboard');
+ assert.equal(response.status,200);
+ const snapshot=await response.json();
+ assert.equal(snapshot.standings[0].id,2);
+ assert.equal(snapshot.standings[0].gold,3);
+ const rules=await call(env,'/api/rules');
+ assert.equal(rules.status,200,'luật hỏng phải trả danh sách rỗng, không phải 500');
+ assert.deepEqual(await rules.json(),{rules:[]});db.close()});

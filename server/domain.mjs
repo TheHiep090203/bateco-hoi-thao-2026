@@ -3,6 +3,21 @@ export const sportData=[{id:1,name:'Đoàn kết',discipline:'Kéo co 10v10'},{i
 export function standings(alliances){const rows=alliances.map(a=>({...a,gold:a.gold||0,silver:a.silver||0,bronze:a.bronze||0}));rows.sort((a,b)=>(b.gold+b.silver+b.bronze)-(a.gold+a.silver+a.bronze)||b.gold-a.gold||b.silver-a.silver||b.bronze-a.bronze||a.id-b.id);let rank=1;return rows.map((a,i)=>{if(i&&['gold','silver','bronze'].some(k=>a[k]!==rows[i-1][k]))rank=i+1;return {...a,rank,tied:rows.some(b=>b.id!==a.id&&['gold','silver','bronze'].every(k=>b[k]===a[k]))}})}
 export function validateResult(body){if(!body||typeof body!=='object'||Array.isArray(body))throw Error('Dữ liệu không hợp lệ.');const r={};if(typeof body.id!=='string'||!/^[-a-zA-Z0-9]{16,80}$/.test(body.id))throw Error('Mã kết quả không hợp lệ.');r.id=body.id;if(!Number.isInteger(body.sport_id)||body.sport_id<1||body.sport_id>5)throw Error('Vui lòng chọn môn thi đấu.');r.sport_id=body.sport_id;for(const [field,label,max] of [['event','Trận/Phần thi',160],['participants','Đội/VĐV',1000],['score','Kết quả',1000]]){if(typeof body[field]!=='string'||!body[field].trim()||body[field].trim().length>max)throw Error(`${label}: cần nhập từ 1 đến ${max} ký tự.`);r[field]=body[field].trim()}if(!Number.isInteger(body.revision)||body.revision<0)throw Error('Phiên bản kết quả không hợp lệ.');r.revision=body.revision;return r}
 export function validateMedals(body){if(!body||typeof body!=='object'||Array.isArray(body))throw Error('Dữ liệu không hợp lệ.');if(!Number.isInteger(body.alliance_id)||body.alliance_id<1||body.alliance_id>3)throw Error('Vui lòng chọn liên minh.');const m={alliance_id:body.alliance_id};for(const [field,label] of [['gold','HCV'],['silver','HCB'],['bronze','HCĐ']]){const v=body[field];if(!Number.isInteger(v)||v<0||v>999)throw Error(`Tổng ${label}: cần nhập số nguyên từ 0 đến 999.`);m[field]=v}return m}
+export const RULE_KEYS=['tug','men','women','relay','pickle','aoe','football'];
+function ruleCells(line,label){const cells=line.split('|').map(c=>c.trim());if(cells.length!==2||!cells[0])throw Error(`${label}: mỗi dòng cần đúng dạng “cột 1 | cột 2”.`);return cells}
+export function parseRuleDoc(doc){const blocks=[];let table=null;
+ for(const raw of String(doc.full??'').split(/\r?\n/)){const line=raw.trim();
+  if(!line){table=null;continue}
+  if(line.includes('|')){const cells=ruleCells(line,'Toàn văn luật');if(!table){table={type:'table',rows:[]};blocks.push(table)}table.rows.push(cells)}
+  else{table=null;blocks.push({type:'p',text:line})}}
+ const lines=t=>String(t??'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+ return {title:String(doc.title??'').trim(),quick:lines(doc.quick).map(l=>ruleCells(l,'Thông tin nhanh')),notes:lines(doc.notes),blocks}}
+export function validateRules(body){if(!body||typeof body!=='object'||Array.isArray(body))throw Error('Dữ liệu không hợp lệ.');
+ if(!RULE_KEYS.includes(body.key))throw Error('Tài liệu luật không hợp lệ.');const doc={key:body.key};
+ for(const [field,label,max] of [['title','Tên luật',120],['quick','Thông tin nhanh',4000],['notes','Lưu ý quan trọng',4000],['full','Toàn văn luật',16000]]){
+  const v=body[field];if(typeof v!=='string')throw Error(`${label}: cần nhập văn bản.`);if(v.length>max)throw Error(`${label}: tối đa ${max} ký tự.`);doc[field]=v}
+ if(!doc.title.trim())throw Error('Tên luật: cần nhập từ 1 đến 120 ký tự.');
+ parseRuleDoc(doc);return doc}
 export function safeEqual(a,b){a=String(a??'');b=String(b??'');if(a.length!==b.length)return false;let diff=0;for(let i=0;i<a.length;i++)diff|=a.charCodeAt(i)^b.charCodeAt(i);return diff===0}
 function base64url(bytes){let s='';for(const b of bytes)s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 async function sign(secret,payload){const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);return base64url(new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(payload))))}

@@ -29,6 +29,13 @@
       "when": 1789439569842,
       "tag": "0003_medals",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789440083571,
+      "tag": "0004_rules",
+      "breakpoints": true
     }
   ]
 }

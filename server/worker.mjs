@@ -1,4 +1,4 @@
-import { allianceData, sportData, standings, validateResult, validateDraws, validateBracket, validateMedals, safeEqual, signSession, verifySession } from './domain.mjs';
+import { allianceData, sportData, standings, validateResult, validateDraws, validateBracket, validateMedals, parseRuleDoc, validateRules, RULE_KEYS, safeEqual, signSession, verifySession } from './domain.mjs';
 const security={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; frame-src https://www.google.com; connect-src 'self'; base-uri 'none'; form-action 'self'"};
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{...security,'Content-Type':'application/json; charset=utf-8'}})}
 function cookie(request,name){const raw=request.headers.get('Cookie');if(!raw)return '';for(const part of raw.split(';')){const t=part.trim();if(t.startsWith(name+'='))return t.slice(name.length+1)}return ''}
@@ -12,6 +12,9 @@ async function snapshot(env){const [a,s,r,d]=await env.DB.batch([env.DB.prepare(
 async function bracketRows(env){try{const b=await env.DB.prepare('SELECT sport_id,data FROM brackets ORDER BY sport_id').all();
  const rows=[];for(const row of b.results){try{rows.push({sport_id:row.sport_id,data:JSON.parse(row.data)})}catch{console.error('Bỏ qua sơ đồ hỏng, sport_id',row.sport_id)}}return rows}
  catch(e){console.error('Không đọc được sơ đồ, trang vẫn phục vụ phần còn lại',e.message);return []}}
+async function ruleRows(env){try{const b=await env.DB.prepare('SELECT rule_key,data FROM rules ORDER BY rule_key').all();
+ const rows=[];for(const row of b.results){try{const raw=JSON.parse(row.data);rows.push({key:row.rule_key,...parseRuleDoc(raw),raw})}catch{console.error('Bỏ qua luật hỏng, khoá',row.rule_key)}}return rows}
+ catch(e){console.error('Không đọc được luật, trang vẫn phục vụ phần còn lại',e.message);return []}}
 export default {async fetch(request,env){const url=new URL(request.url),path=url.pathname;try{
 if(path.startsWith('/api/')){
  if(!env.DB)return json({error:'Chưa kết nối cơ sở dữ liệu. Vui lòng thử lại sau.'},503);
@@ -55,6 +58,24 @@ if(path.startsWith('/api/')){
   const now=new Date().toISOString(),uid='admin';let saved;
   try{saved=previous?await env.DB.prepare('UPDATE results SET sport_id=?,event=?,participants=?,score=?,updated_at=?,updated_by=?,revision=revision+1 WHERE id=? AND revision=?').bind(r.sport_id,r.event,r.participants,r.score,now,uid,r.id,r.revision).run():await env.DB.prepare('INSERT INTO results (id,sport_id,event,participants,score,revision,updated_at,updated_by) VALUES (?,?,?,?,?,1,?,?)').bind(r.id,r.sport_id,r.event,r.participants,r.score,now,uid).run()}catch(e){if(String(e).includes('UNIQUE'))return json({error:'Trận/Phần thi này đã tồn tại. Hãy chọn Sửa kết quả trong danh sách.'},409);throw e}
   if(!saved.meta.changes)return json({error:'Kết quả vừa được sửa ở nơi khác. Hãy tải lại danh sách.'},409);return json({ok:true,id:r.id,revision:r.revision+1});
+ }
+ if(path==='/api/rules'&&request.method==='GET')return json({rules:await ruleRows(env)});
+ if(path==='/api/admin/rules'&&request.method==='DELETE'){
+  if(!await isAdmin(request,env))return json({error:'Vui lòng đăng nhập.'},401);
+  if(request.headers.get('Origin')!==url.origin||!request.headers.get('Content-Type')?.startsWith('application/json'))return json({error:'Yêu cầu không hợp lệ.'},403);
+  const raw=await request.text();if(raw.length>1000)return json({error:'Nội dung quá dài.'},413);
+  let key;try{key=JSON.parse(raw)?.key}catch{return json({error:'Dữ liệu không hợp lệ.'},400)}
+  if(!RULE_KEYS.includes(key))return json({error:'Tài liệu luật không hợp lệ.'},400);
+  await env.DB.prepare('DELETE FROM rules WHERE rule_key=?').bind(key).run();
+  return json({ok:true,key});
+ }
+ if(path==='/api/admin/rules'&&request.method==='POST'){
+  if(!await isAdmin(request,env))return json({error:'Vui lòng đăng nhập.'},401);
+  if(request.headers.get('Origin')!==url.origin||!request.headers.get('Content-Type')?.startsWith('application/json'))return json({error:'Yêu cầu không hợp lệ.'},403);
+  if(Number(request.headers.get('Content-Length'))>26000)return json({error:'Nội dung quá dài.'},413);const raw=await request.text();if(raw.length>26000)return json({error:'Nội dung quá dài.'},413);
+  let d;try{d=validateRules(JSON.parse(raw))}catch(e){return json({error:e.message},400)}
+  await env.DB.prepare('INSERT INTO rules (rule_key,data,updated_at) VALUES (?,?,?) ON CONFLICT(rule_key) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at').bind(d.key,JSON.stringify({title:d.title,quick:d.quick,notes:d.notes,full:d.full}),new Date().toISOString()).run();
+  return json({ok:true,key:d.key});
  }
  if(path==='/api/admin/medals'&&request.method==='POST'){
   if(!await isAdmin(request,env))return json({error:'Vui lòng đăng nhập.'},401);

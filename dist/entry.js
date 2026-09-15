@@ -14,7 +14,7 @@ function renderLogin(message){entryTitle.textContent='Đăng nhập để nhập
   try{await entryApi('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:form.elements.user.value,pass:form.elements.pass.value})});entryLock(false);renderStep()}
   catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Máy chủ chưa phản hồi. Vui lòng thử lại.':err.message;form.elements.pass.focus();form.elements.pass.select()}}}
 
-function renderStep(){document.querySelector('#entry-logout').hidden=false;entryKind==='draw'?renderDrawForm():entryKind==='bracket'?renderBracketForm():entryKind==='medal'?renderMedalForm():renderResultForm()}
+function renderStep(){document.querySelector('#entry-logout').hidden=false;entryKind==='draw'?renderDrawForm():entryKind==='bracket'?renderBracketForm():entryKind==='medal'?renderMedalForm():entryKind==='rules'?renderRulesForm():renderResultForm()}
 
 function renderResultForm(){entryTitle.textContent='Nhập kết quả thi đấu';
  entryBody.innerHTML=`<form id="entry-result"><label>Môn thi đấu<select name="sport_id" required></select></label><label>Trận/Phần thi<input name="event" required maxlength="160" autocomplete="off"></label><label>Đội/VĐV<textarea name="participants" required maxlength="1000" rows="2"></textarea></label><label>Kết quả<textarea name="score" required maxlength="1000" rows="2"></textarea></label><div class="actions"><button class="button orange" type="submit" id="entry-save">Lưu kết quả</button><button class="button" type="button" id="entry-new">Nhập kết quả mới</button></div><p id="entry-status" role="status"></p></form><div class="admin-list-head"><h3>Kết quả đã nhập</h3></div><div id="entry-list"></div>`;
@@ -38,6 +38,27 @@ function renderResultForm(){entryTitle.textContent='Nhập kết quả thi đấ
   try{await entryApi('/api/admin/results',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});await sync(true);entryLock(false);fresh();renderList();status.textContent='Đã lưu. Bảng kết quả đã cập nhật.'}
   catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Giữ nguyên nội dung và bấm lưu lại để kiểm tra.':err.message}}}
 
+const RULE_DOCS=[['tug','Kéo co'],['men','Điền kinh – Nam 1.500m'],['women','Điền kinh – Nữ 1.500m'],['relay','Điền kinh – Chạy tiếp sức'],['pickle','Pickleball'],['aoe','AOE'],['football','Bóng đá Nam']];
+function renderRulesForm(){entryTitle.textContent='Nhập luật thi đấu';
+ let key=RULE_DOCS[0][0],dirty=false;
+ entryBody.innerHTML=`<label>Tài liệu luật<select id="rule-doc">${RULE_DOCS.map(([k,l])=>`<option value="${k}">${entryEsc(l)}</option>`).join('')}</select></label><p class="muted">Mỗi dòng là một mục. Dòng dạng “cột 1 | cột 2” tạo một dòng bảng; các dòng bảng liền nhau gộp thành một bảng, dòng đầu là tiêu đề. Dòng trống kết thúc bảng.</p><form id="entry-rules"><label>Tên luật<input name="title" maxlength="120" required autocomplete="off"></label><label>Thông tin nhanh<textarea name="quick" rows="5" maxlength="4000"></textarea></label><label>Lưu ý quan trọng<textarea name="notes" rows="4" maxlength="4000"></textarea></label><label>Toàn văn luật<textarea name="full" rows="14" maxlength="16000"></textarea></label><div class="actions"><button class="button orange" type="submit" id="rules-save">Lưu luật</button><button class="button" type="button" id="rules-reset">Khôi phục mặc định</button></div><p id="entry-status" role="status"></p></form>`;
+ const select=entryBody.querySelector('#rule-doc'),form=entryBody.querySelector('#entry-rules'),status=entryBody.querySelector('#entry-status');
+ const load=()=>{const raw=ruleRawText(key);for(const k of ['title','quick','notes','full'])form.elements[k].value=raw[k]??'';dirty=false};
+ load();
+ form.oninput=()=>{dirty=true};
+ select.onchange=async()=>{if(entryBusy)return;
+  if(dirty&&!await confirmDialog('Bỏ các thay đổi chưa lưu của tài liệu trước?','Bỏ thay đổi')){select.value=key;return}
+  key=select.value;load();status.textContent=''};
+ entryBody.querySelector('#rules-reset').onclick=async()=>{if(entryBusy)return;
+  if(!await confirmDialog('Khôi phục tài liệu này về nội dung mặc định? Nội dung đã nhập sẽ bị xóa.','Khôi phục'))return;
+  entryLock(true);status.textContent='Đang khôi phục…';
+  try{await entryApi('/api/admin/rules',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({key})});await loadRules();refreshRulesPanel();entryLock(false);load();status.textContent='Đã khôi phục nội dung mặc định.'}
+  catch(err){entryLock(false);status.textContent=err.message}};
+ form.onsubmit=async e=>{e.preventDefault();if(entryBusy||!form.reportValidity())return;
+  const payload={key};for(const k of ['title','quick','notes','full'])payload[k]=form.elements[k].value;
+  entryLock(true);status.textContent='Đang lưu…';
+  try{await entryApi('/api/admin/rules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});await loadRules();refreshRulesPanel();entryLock(false);load();status.textContent='Đã lưu. Mục Luật Thi Đấu đã cập nhật.'}
+  catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Bấm lưu lại để kiểm tra.':err.message}}}
 function renderMedalForm(){entryTitle.textContent='Nhập tổng huy chương';
  entryBody.innerHTML=`<p class="muted">Nhập tổng số huy chương mỗi liên minh đã giành. Lưu sẽ thay cả ba con số của liên minh đang chọn.</p><form id="entry-medal"><label>Liên minh<select name="alliance_id" required></select></label><div class="medal-inputs"><label>Tổng HCV<input name="gold" type="number" min="0" max="999" step="1" required></label><label>Tổng HCB<input name="silver" type="number" min="0" max="999" step="1" required></label><label>Tổng HCĐ<input name="bronze" type="number" min="0" max="999" step="1" required></label></div><div class="actions"><button class="button orange" type="submit" id="medal-save">Lưu huy chương</button></div><p id="entry-status" role="status"></p></form>`;
  const form=entryBody.querySelector('#entry-medal'),status=entryBody.querySelector('#entry-status');
@@ -71,7 +92,7 @@ function renderDrawForm(){entryTitle.textContent='Nhập bảng đấu';
   catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Bấm lưu lại để kiểm tra.':err.message}}}
 
 async function openEntry(button){entryTrigger=button;entryKind=button.dataset.entry;
- document.querySelector('#entry-eyebrow').textContent=entryKind==='draw'?'BẢNG ĐẤU':entryKind==='bracket'?'SƠ ĐỒ LOẠI TRỰC TIẾP':entryKind==='medal'?'HUY CHƯƠNG':'KẾT QUẢ THI ĐẤU';
+ document.querySelector('#entry-eyebrow').textContent=entryKind==='draw'?'BẢNG ĐẤU':entryKind==='bracket'?'SƠ ĐỒ LOẠI TRỰC TIẾP':entryKind==='medal'?'HUY CHƯƠNG':entryKind==='rules'?'LUẬT THI ĐẤU':'KẾT QUẢ THI ĐẤU';
  entryTitle.textContent='Đang kiểm tra phiên đăng nhập…';entryBody.innerHTML='';
  entryDialog.showModal();document.body.style.overflow='hidden';
  if(!liveData){entryBody.innerHTML='<p class="muted">Chưa tải được dữ liệu. Vui lòng đóng và thử lại.</p>';return}
