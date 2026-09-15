@@ -36,6 +36,13 @@
       "when": 1789440083571,
       "tag": "0004_rules",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1789445207281,
+      "tag": "0005_schedule",
+      "breakpoints": true
     }
   ]
 }

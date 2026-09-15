@@ -14,7 +14,7 @@ function renderLogin(message){entryTitle.textContent='Đăng nhập để nhập
   try{await entryApi('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:form.elements.user.value,pass:form.elements.pass.value})});entryLock(false);renderStep()}
   catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Máy chủ chưa phản hồi. Vui lòng thử lại.':err.message;form.elements.pass.focus();form.elements.pass.select()}}}
 
-function renderStep(){document.querySelector('#entry-logout').hidden=false;entryKind==='draw'?renderDrawForm():entryKind==='bracket'?renderBracketForm():entryKind==='medal'?renderMedalForm():entryKind==='rules'?renderRulesForm():renderResultForm()}
+function renderStep(){document.querySelector('#entry-logout').hidden=false;entryKind==='draw'?renderDrawForm():entryKind==='bracket'?renderBracketForm():entryKind==='medal'?renderMedalForm():entryKind==='rules'?renderRulesForm():entryKind==='schedule'?renderScheduleForm():renderResultForm()}
 
 function renderResultForm(){entryTitle.textContent='Nhập kết quả thi đấu';
  entryBody.innerHTML=`<form id="entry-result"><label>Môn thi đấu<select name="sport_id" required></select></label><label>Trận/Phần thi<input name="event" required maxlength="160" autocomplete="off"></label><label>Đội/VĐV<textarea name="participants" required maxlength="1000" rows="2"></textarea></label><label>Kết quả<textarea name="score" required maxlength="1000" rows="2"></textarea></label><div class="actions"><button class="button orange" type="submit" id="entry-save">Lưu kết quả</button><button class="button" type="button" id="entry-new">Nhập kết quả mới</button></div><p id="entry-status" role="status"></p></form><div class="admin-list-head"><h3>Kết quả đã nhập</h3></div><div id="entry-list"></div>`;
@@ -74,6 +74,23 @@ function renderMedalForm(){entryTitle.textContent='Nhập tổng huy chương';
   entryLock(true);status.textContent='Đang lưu…';
   try{await entryApi('/api/admin/medals',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});await sync(true);entryLock(false);load();status.textContent='Đã lưu. Bảng tổng sắp đã cập nhật.'}
   catch(err){if(err.status===409){await sync(true);load()}entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Bấm lưu lại để kiểm tra.':err.message}}}
+function renderScheduleForm(){entryTitle.textContent='Nhập lịch trình ngày hội thao';
+ let dirty=false;
+ entryBody.innerHTML=`<p class="muted">Mỗi dòng là một mục, dạng “giờ | hoạt động”. Thêm “| nhãn” ở cuối nếu muốn gắn nhãn cho mục đó. Dòng trống được bỏ qua.</p><form id="entry-schedule"><label>Lịch trình<textarea name="text" rows="12" maxlength="4000" required></textarea></label><div class="actions"><button class="button orange" type="submit" id="schedule-save">Lưu lịch trình</button><button class="button" type="button" id="schedule-reset">Khôi phục mặc định</button></div><p id="entry-status" role="status"></p></form>`;
+ const form=entryBody.querySelector('#entry-schedule'),status=entryBody.querySelector('#entry-status');
+ const load=()=>{form.elements.text.value=scheduleRawText();dirty=false};
+ load();
+ loadSchedule().then(()=>{if(!dirty)load()});
+ form.oninput=()=>{dirty=true};
+ entryBody.querySelector('#schedule-reset').onclick=async()=>{if(entryBusy)return;
+  if(!await confirmDialog('Khôi phục lịch trình về nội dung mặc định? Nội dung đã nhập sẽ bị xóa.','Khôi phục'))return;
+  entryLock(true);status.textContent='Đang khôi phục…';
+  try{await entryApi('/api/admin/schedule',{method:'DELETE',headers:{'Content-Type':'application/json'},body:'{}'});await loadSchedule();renderSchedule();entryLock(false);load();status.textContent='Đã khôi phục nội dung mặc định.'}
+  catch(err){entryLock(false);status.textContent=err.message}};
+ form.onsubmit=async e=>{e.preventDefault();if(entryBusy||!form.reportValidity())return;
+  entryLock(true);status.textContent='Đang lưu…';
+  try{await entryApi('/api/admin/schedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:form.elements.text.value})});await loadSchedule();renderSchedule();entryLock(false);load();status.textContent='Đã lưu. Mục Lịch trình đã cập nhật.'}
+  catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Bấm lưu lại để kiểm tra.':err.message}}}
 function renderDrawForm(){entryTitle.textContent='Nhập bảng đấu';
  const active=document.querySelector('#bang-dau [data-draw][aria-selected="true"]');
  let sport=active&&Number(active.dataset.draw)!==2?Number(active.dataset.draw):0,dirty=false;
@@ -94,7 +111,7 @@ function renderDrawForm(){entryTitle.textContent='Nhập bảng đấu';
   catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Bấm lưu lại để kiểm tra.':err.message}}}
 
 async function openEntry(button){entryTrigger=button;entryKind=button.dataset.entry;
- document.querySelector('#entry-eyebrow').textContent=entryKind==='draw'?'BẢNG ĐẤU':entryKind==='bracket'?'SƠ ĐỒ LOẠI TRỰC TIẾP':entryKind==='medal'?'HUY CHƯƠNG':entryKind==='rules'?'LUẬT THI ĐẤU':'KẾT QUẢ THI ĐẤU';
+ document.querySelector('#entry-eyebrow').textContent=entryKind==='draw'?'BẢNG ĐẤU':entryKind==='bracket'?'SƠ ĐỒ LOẠI TRỰC TIẾP':entryKind==='medal'?'HUY CHƯƠNG':entryKind==='rules'?'LUẬT THI ĐẤU':entryKind==='schedule'?'LỊCH TRÌNH':'KẾT QUẢ THI ĐẤU';
  entryTitle.textContent='Đang kiểm tra phiên đăng nhập…';entryBody.innerHTML='';
  entryDialog.showModal();document.body.style.overflow='hidden';
  if(!liveData){entryBody.innerHTML='<p class="muted">Chưa tải được dữ liệu. Vui lòng đóng và thử lại.</p>';return}
