@@ -10,6 +10,7 @@ test.describe.configure({ mode: 'serial' });
 
 const WIDTHS = [320, 360, 414];
 const PICKLE = 2; // tab index 2 = sport_id 3 (Pickleball)
+const TUG = 0;
 const AA_MIN = 24; // WCAG 2.5.8 Target Size (Minimum)
 const MARKER = '[e2e-responsive]'; // để dọn lại dữ liệu của chính test, kể cả sau lần chạy hỏng
 
@@ -59,7 +60,7 @@ async function seed(page, origin){
   expect(r.status(), await r.text()).toBe(200);
   // draws và bracket ghi đè theo sport_id nên chạy lại nhiều lần vẫn cho cùng trạng thái.
   const d = await page.request.post('/api/admin/draws', { headers:{Origin:origin}, data:{
-    sport_id: 3, rows: [
+    sport_id: 1, rows: [
       ['Bảng A', TEAMS[0], TEAMS[1], 'Sân số 1 – Nhà thi đấu trung tâm'],
       ['Bảng B', TEAMS[2], TEAMS[3], 'Sân số 2 – Nhà thi đấu trung tâm'],
     ] } });
@@ -158,9 +159,15 @@ test('không có cuộn ngang cấp trang ở màn hẹp khi đã có dữ liệ
     await openPickleballWithAdmin(page);
     // Bảng và sơ đồ được phép cuộn ngang bên trong container của chúng;
     // điều không được phép là cuộn ngang ở cấp trang.
-    const over = await page.evaluate(() =>
+    const overBracket = await page.evaluate(() =>
       document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    expect(over, `${w}px bị cuộn ngang cấp trang`).toBe(0);
+    expect(overBracket, `${w}px bị cuộn ngang cấp trang ở tab sơ đồ`).toBe(0);
+
+    await page.locator(`#draw-tab-${TUG}`).click();
+    await expect(page.locator('#draw-panel .official-row').first()).toBeVisible({ timeout: 15000 });
+    const overDraw = await page.evaluate(() =>
+      document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overDraw, `${w}px bị cuộn ngang cấp trang ở tab bảng đấu có dữ liệu`).toBe(0);
   }
 
 });
