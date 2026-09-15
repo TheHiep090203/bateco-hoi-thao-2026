@@ -286,15 +286,22 @@ test('Serialising the built-in schedule and parsing it back reproduces every row
  assert.equal(schedule.length,9);
  const text=schedule.map(r=>r.join(' | ')).join('\n');
  assert.deepEqual(parseSchedule(text),schedule,'lịch trình nướng sẵn phải round-trip qua đúng định dạng admin nhập')});
-test('Rendering the built-in schedule keeps every row visible as before, with HTML characters escaped',()=>{
+test('The built-in schedule carries exactly one label, on the football row',()=>{
  const schedule=clientConst('schedule');
- const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const html=schedule.map(([time,name,tag])=>`<li><span class="timeline-dot"></span><time>${esc(time)}</time><strong>${esc(name)}</strong>${tag?`<span class="pill">${esc(tag)}</span>`:''}</li>`).join('');
- assert.equal((html.match(/<li>/g)||[]).length,9);
- assert.equal((html.match(/class="pill"/g)||[]).length,1,'đúng một mục mang nhãn, như bản đang chạy');
- assert.match(html,/<strong>Bóng đá Nam – BATECO CUP<\/strong><span class="pill">BATECO CUP<\/span>/,'nhãn phải nằm đúng mục bóng đá');
- assert.match(html,/Pickleball &amp; Esport/,'dấu & được escape, trình duyệt vẫn hiện “Pickleball & Esport”');
- for(const m of html.matchAll(/<strong>(.*?)<\/strong>/g))assert.doesNotMatch(m[1],/[<>]/,'văn bản lọt ra ngoài vùng an toàn: '+m[1])});
+ assert.equal(schedule.length,9);
+ const labelled=schedule.filter(r=>r.length===3);
+ assert.equal(labelled.length,1,'đúng một mục mang nhãn, như bản đang chạy');
+ assert.deepEqual(labelled[0],['14:00 – 17:30','Bóng đá Nam – BATECO CUP','BATECO CUP']);
+ for(const [time,name] of schedule){
+  assert.ok(time.trim(),'mọi mục phải có giờ');
+  assert.ok(name.trim(),'mọi mục phải có tên hoạt động')}});
+test('Every schedule cell reaches the page through the HTML escaper',()=>{
+ const line=fs.readFileSync('dist/app.js','utf8').split(/\r?\n/).find(l=>l.startsWith('function renderSchedule()'));
+ assert.ok(line,'không tìm thấy renderSchedule trong dist/app.js');
+ const body=line.slice(line.indexOf('innerHTML='));
+ for(const cell of ['t','n','tag'])
+  assert.match(body,new RegExp('officialText\\('+cell+'\\)'),`ô ${cell} phải đi qua officialText, nếu không admin nhập được HTML thẳng vào trang`);
+ assert.doesNotMatch(body,/\$\{(t|n|tag)\}/,'không ô nào được nhúng thẳng vào HTML')});
 test('Schedule requires a session and keeps exactly one row',async()=>{const {db,binding}=database();const env={DB:binding,...creds};
  assert.equal((await call(env,'/api/admin/schedule','POST',{text:scheduleText})).status,401);
  assert.equal((await call(env,'/api/admin/schedule','POST',{text:scheduleText},{Cookie:'admin=not-a-token'})).status,401);

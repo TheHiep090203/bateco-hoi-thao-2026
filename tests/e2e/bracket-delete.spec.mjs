@@ -36,6 +36,8 @@ test('lúc mới tải trang và mỗi lần đổi tab, đúng một nút nhậ
   await page.goto('/');
   const draw = page.locator('#bang-dau [data-entry="draw"]');
   const bracket = page.locator('#bang-dau [data-entry="bracket"]');
+  await expect(page.locator('#bang-dau [data-entry]'),
+    'cả hai nút phải luôn tồn tại; toBeHidden cũng xanh khi phần tử biến mất').toHaveCount(2);
   await expect(draw, 'tab mặc định là Kéo co nên phải hiện nút Nhập bảng đấu').toBeVisible();
   await expect(bracket, 'tab mặc định là Kéo co nên phải ẩn nút Nhập sơ đồ').toBeHidden();
   for (const i of [2, 0, 2, 4, 2]) {

@@ -15,8 +15,9 @@ function credentials(){
 const DEFAULT_ROWS = 9;
 
 async function restoreDefault(page, origin){
-  await page.request.delete('/api/admin/schedule', {
+  const r = await page.request.delete('/api/admin/schedule', {
     headers: { Origin: origin, 'Content-Type': 'application/json' }, data: {} });
+  expect(r.status(), 'dọn dẹp thất bại sẽ để override kẹt lại và làm test khác đỏ vì lý do sai').toBe(200);
 }
 
 test('chưa nhập gì thì mục Lịch trình vẫn hiện đúng nội dung nướng sẵn', async ({ page }) => {
@@ -87,6 +88,7 @@ test('nút Khôi phục mặc định gỡ hẳn nội dung đã nhập và tr�
     data: { text: '05:00 | Mục sẽ bị khôi phục' } });
   expect(saved.status()).toBe(200);
 
+  try {
   await page.reload();
   await expect(page.locator('#lich-trinh .timeline li')).toHaveCount(1);
 
@@ -102,4 +104,7 @@ test('nút Khôi phục mặc định gỡ hẳn nội dung đã nhập và tr�
   await page.locator('#entry-close').click();
   const after = await (await page.request.get('/api/schedule')).json();
   expect(after.schedule, 'khôi phục phải xoá hẳn dòng override, không chỉ ghi đè').toBeNull();
+  } finally {
+    await restoreDefault(page, origin);
+  }
 });
