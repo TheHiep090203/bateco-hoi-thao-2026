@@ -71,6 +71,7 @@ async function openEntry(button){entryTrigger=button;entryKind=button.dataset.en
 document.querySelectorAll('[data-entry]').forEach(b=>b.onclick=()=>openEntry(b));
 document.querySelector('#entry-close').onclick=()=>entryDialog.close();
 entryDialog.addEventListener('cancel',e=>{if(entryBusy)e.preventDefault()});
+entryDialog.addEventListener('click',e=>{if(entryBusy||e.target!==entryDialog)return;const r=entryDialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)entryDialog.close()});
 entryDialog.addEventListener('close',()=>{document.body.style.overflow='';entryBody.innerHTML='';if(entryTrigger?.isConnected)entryTrigger.focus()});
 
 // Form sơ đồ: chỉ nhập 08 tên đội và kết quả 07 trận. Ô BK1–BK4, NHẤT, NHÌ suy ra
@@ -96,6 +97,7 @@ function renderBracketForm(){entryTitle.textContent='Nhập sơ đồ loại tr�
 // để dùng như hộp thông báo một nút.
 document.body.insertAdjacentHTML('beforeend','<dialog id="confirm-dialog" class="admin-shell" aria-labelledby="confirm-title"><h2 id="confirm-title">Xác nhận</h2><p id="confirm-message"></p><div class="actions"><button type="button" class="button orange" id="confirm-yes">Có</button><button type="button" class="button" id="confirm-no">Không</button></div></dialog>');
 const confirmDialogEl=document.querySelector('#confirm-dialog');
+confirmDialogEl.addEventListener('click',e=>{if(e.target!==confirmDialogEl)return;const r=confirmDialogEl.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)confirmDialogEl.close()});
 function confirmDialog(message,yesLabel='Có',showCancel=true){return new Promise(resolve=>{
  const yes=confirmDialogEl.querySelector('#confirm-yes'),no=confirmDialogEl.querySelector('#confirm-no');
  confirmDialogEl.querySelector('#confirm-message').textContent=message;
