@@ -60,14 +60,14 @@ Phiên kéo dài 8 giờ.
 | Mục | Nút | Nội dung nhập |
 |---|---|---|
 | Bảng đấu | *Nhập bảng đấu* | Bảng đấu của Kéo co, Điền kinh, AOE, Bóng đá |
-| Bảng đấu, tab Pickleball | *Nhập sơ đồ* | Sơ đồ loại trực tiếp 08 đội |
+| Bảng đấu, tab Pickleball | *Nhập vòng bảng* | Tỉ số 20 trận vòng bảng, Nhất/Nhì mỗi bảng, 4 trận chung kết |
 | Lịch trình | *Nhập lịch trình* | Các mốc giờ trong ngày hội thao |
 | Luật thi đấu | *Nhập luật thi đấu* | Toàn văn luật từng môn |
 | Bảng tổng sắp huy chương | *Nhập huy chương* | Tổng HCV/HCB/HCĐ từng liên minh |
 | Kết quả thi đấu | *Nhập kết quả* | Kết quả từng trận, từng phần thi |
 
 Mục Bảng đấu mang hai nút nhưng chỉ hiện một nút mỗi lúc, theo tab đang chọn: bốn môn
-dùng bảng thì hiện *Nhập bảng đấu*, riêng Pickleball dùng sơ đồ nên hiện *Nhập sơ đồ*.
+dùng bảng thì hiện *Nhập bảng đấu*, riêng Pickleball dùng vòng bảng nên hiện *Nhập vòng bảng*.
 
 Lịch trình và Luật thi đấu giữ sẵn nội dung mặc định ngay trong `dist/app.js`; nội dung
 admin nhập chỉ phủ lên trên. Mỗi form có nút *Khôi phục mặc định* để gỡ hẳn phần đã nhập.

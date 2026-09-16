@@ -19,28 +19,36 @@
 .faq-map{display:block;width:100%;aspect-ratio:16/10;border-radius:8px;overflow:hidden;margin:4px 0 22px;background:#eaf0f3}
 .faq-map iframe{display:block;width:100%;height:100%;border:0}
 
-/* Sơ đồ loại trực tiếp Pickleball. Mỗi cột và mỗi cặp đều dùng justify-content:space-around,
-   nên tâm cặp ở cột sau luôn trùng điểm giữa hai ô ở cột trước. Đường nối vì thế suy ra từ
-   layout (25%/50%/75%) chứ không đặt bằng toạ độ tuyệt đối, không lệch khi đổi cỡ màn. */
 .bracket-sheet{background:white;border:1px solid #d0dee3;border-radius:8px;margin-top:22px;overflow:hidden}
 .bracket-sheet h3{margin:0;padding:22px 24px;font-size:20px}
-.bracket-scroll{overflow-x:auto;overscroll-behavior-x:contain;padding:4px 26px 26px}
-.bracket{display:flex;gap:44px;min-width:620px;min-height:480px}
-.bracket-col{flex:1;display:flex;flex-direction:column;justify-content:space-around}
 .bracket-pair{position:relative;flex:1;display:flex;flex-direction:column;justify-content:space-around}
 .bracket-slot{position:relative;background:#f3f7f8;border:1px solid #cfdee3;border-left:3px solid #9dc0cb;border-radius:5px;padding:8px 12px;font-size:14px;font-weight:700;line-height:1.4;color:#0b2938;overflow-wrap:anywhere}
 .bracket-slot small{display:block;font-size:11px;font-weight:600;color:#60717b;letter-spacing:1px}
 .bracket-slot.is-empty{background:white;color:#7d909a;font-weight:600}
 .bracket-slot.is-winner{background:#e7f3f2;border-left-color:#007e80;color:#00575c}
-.bracket-tag{position:absolute;left:-12px;bottom:-11px;z-index:1;background:#ff762c;color:white;font-size:11px;font-weight:800;letter-spacing:1px;padding:4px 7px;border-radius:3px}
-.bracket-col:not(:last-child) .bracket-pair:after,.bracket-final .bracket-pair:after{content:'';position:absolute;right:-22px;top:25%;bottom:25%;width:22px;border:2px solid #b9d2da;border-left:0;border-radius:0 6px 6px 0}
-.bracket-col:not(:last-child) .bracket-pair:before{content:'';position:absolute;right:-44px;top:50%;width:22px;border-top:2px solid #b9d2da}
-.bracket-score{position:absolute;right:-36px;top:50%;transform:translateY(-50%);z-index:1;background:white;border:1px solid #cfdee3;border-radius:3px;padding:1px 5px;font-size:11px;font-weight:700;color:#007e80;white-space:nowrap}
-.bracket-final .bracket-score{right:auto;left:50%;transform:translate(-50%,-50%)}
-/* Form nhập sơ đồ trong modal admin */
-#entry-dialog .bracket-teams{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
+/* Form nhập vòng bảng trong modal admin */
 #entry-dialog #bracket-form h3{font-size:16px;margin:22px 0 12px}
-@media(max-width:650px){.bracket-sheet h3{padding:20px 16px;font-size:18px}.bracket-scroll{padding:4px 16px 20px}#entry-dialog .bracket-teams{grid-template-columns:1fr}}
+.pickle-head{margin:0;padding:18px 24px 0;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#60717b}
+.pickle-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:12px 24px 4px}
+.pickle-group{background:#f3f7f8;border:1px solid #cfdee3;border-radius:6px;padding:12px 14px}
+.pickle-group h4{margin:0 0 8px;font-size:15px;color:#0b2938}
+.pickle-group ol{margin:0;padding-left:20px}
+.pickle-seat{padding:3px 0;font-size:14px;line-height:1.45;color:#0b2938;overflow-wrap:anywhere}
+.pickle-seat em{margin-left:6px;font-style:normal;font-size:11px;font-weight:700;letter-spacing:1px;color:#60717b}
+.pickle-rounds{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;padding:12px 24px 4px}
+.pickle-round{background:white;border:1px solid #d0dee3;border-radius:6px;padding:12px 14px}
+.pickle-round h4{margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:1px;color:#00575c}
+.pickle-match{display:flex;align-items:baseline;gap:8px;padding:6px 0;border-top:1px solid #eaf1f3;font-size:13px;line-height:1.45;color:#0b2938;overflow-wrap:anywhere}
+.pickle-round .pickle-match:first-of-type{border-top:0}
+.pickle-court{flex:none;font-size:11px;font-weight:700;color:#60717b;white-space:nowrap}
+.pickle-vs{flex:1}
+.pickle-vs i{display:block;font-style:normal;font-size:11px;font-weight:700;color:#9dc0cb}
+.pickle-score{display:inline-flex;align-items:center;gap:5px;flex:none;background:#e7f3f2;border:1px solid #cfdee3;border-radius:3px;padding:1px 5px;font-size:12px;font-weight:700;color:#007e80;white-space:nowrap}
+.pickle-finals{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;padding:12px 24px 24px}
+.pickle-final h4{margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:1px;color:#00575c}
+.pickle-final .bracket-pair{gap:8px}
+@media(max-width:650px){.pickle-groups,.pickle-rounds,.pickle-finals{grid-template-columns:1fr;padding-left:16px;padding-right:16px}.pickle-head{padding-left:16px;padding-right:16px}}
+@media(max-width:650px){.bracket-sheet h3{padding:20px 16px;font-size:18px}}
 
 /* Nút Xóa inline. Chỉ hiện khi adminSession=true — thuần UX, server vẫn là nơi chặn thật. */
 .row-delete{border:1px solid #d88135;border-radius:4px;background:white;color:#a95820;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
@@ -49,16 +57,9 @@
 .results-table .row-actions{width:1%;white-space:nowrap;text-align:right}
 .official-row.has-admin{grid-template-columns:repeat(4,minmax(0,1fr)) auto}
 .official-row.has-admin .row-actions{display:flex;align-items:start}
-.bracket-slot:has(.bracket-del){padding-right:32px}
-.bracket-del{position:absolute;right:5px;top:5px;width:21px;height:21px;padding:0;line-height:1;border:1px solid #d8b7a0;border-radius:3px;background:white;color:#a95820;font-size:13px;cursor:pointer}
-.bracket-del:hover{background:#a95820;color:white}
-/* Hai nút xóa dưới đây nằm đè trong ô sơ đồ chật, phóng to hộp nhìn thấy sẽ phá
-   layout vốn suy đường nối từ justify-content:space-around. Nong vùng chạm bằng
-   ::after để đạt WCAG 2.5.8 mà không đổi một pixel layout nào. */
-.bracket-del::after{content:'';position:absolute;inset:-8px}
+/* Nút xóa nằm đè trong ô chật. Nong vùng chạm bằng ::after để đạt WCAG 2.5.8 mà không đổi layout. */
 .bracket-del-match{position:relative;border:0;background:none;color:#a95820;font-size:14px;line-height:1;padding:0 1px;cursor:pointer}
 .bracket-del-match::after{content:'';position:absolute;inset:-9px}
-.bracket-score{display:inline-flex;align-items:center;gap:5px}
 #confirm-dialog{width:min(460px,92vw);min-height:0;padding:26px 28px}
 #confirm-dialog h2{margin:0 0 12px;font-size:20px}
 #confirm-dialog p{font-size:15px;line-height:1.7;margin:0 0 24px}

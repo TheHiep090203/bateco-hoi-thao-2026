@@ -11,14 +11,57 @@ function credentials(){
   }catch{ return null }
 }
 
-test('tab Pickleball chỉ hiện sơ đồ loại trực tiếp, không còn bảng vòng loại', async ({ page }) => {
+const SCORE_CODES = [];
+for (let r = 1; r <= 5; r++) for (let c = 1; c <= 4; c++) SCORE_CODES.push(`R${r}C${c}`);
+const FINAL_CODES = ['SF1', 'SF2', 'GOLD', 'BRONZE'];
+const NHAT_A = 'Hoàng Nam + Huyền Trang';
+const NHI_A = 'Đức Anh + Thanh Ngà';
+const NHAT_B = 'Tuấn Lộc + Thị Lương';
+const NHI_B = 'Văn Tùng + Thu Hường';
+
+function pickleData(over = {}){
+  return {
+    scores: Object.fromEntries(SCORE_CODES.map(c => [c, ''])),
+    groups: { A: { first: null, second: null }, B: { first: null, second: null } },
+    finals: Object.fromEntries(FINAL_CODES.map(c => [c, { score: '', winner: null }])),
+    ...over,
+  };
+}
+
+async function servePickleWithoutWritingSharedDb(page, data){
+  await page.route('**/api/scoreboard', async route => {
+    const res = await route.fetch();
+    const body = await res.json();
+    body.brackets = [{ sport_id: 3, data }];
+    await route.fulfill({ response: res, body: JSON.stringify(body) });
+  });
+}
+
+test('tab Pickleball hiện vòng bảng và nhánh chung kết, không còn bảng 4 cột', async ({ page }) => {
   await page.goto('/');
   await page.locator('#draw-tab-2').click();
   await expect(page.locator('#draw-panel .bracket-sheet')).toBeVisible();
-  await expect(page.locator('#draw-panel .draw-sheet'), 'Pickleball dùng sơ đồ nên không được kèm bảng vòng loại').toHaveCount(0);
-  // 8 suất + 4 ô bán kết + NHẤT + NHÌ
-  await expect(page.locator('.bracket-slot')).toHaveCount(14);
-  await expect(page.locator('.bracket-tag')).toHaveCount(4);
+  await expect(page.locator('#draw-panel .draw-sheet'), 'Pickleball dùng vòng bảng nên không được kèm bảng 4 cột').toHaveCount(0);
+  await expect(page.locator('.pickle-group'), 'phải có đúng hai bảng').toHaveCount(2);
+  await expect(page.locator('.pickle-seat'), 'mỗi bảng 5 đôi, tổng 10 đôi').toHaveCount(10);
+  await expect(page.locator('.pickle-round'), 'lịch có đúng 5 lượt').toHaveCount(5);
+  await expect(page.locator('.pickle-match'), '5 lượt × 4 sân = 20 trận vòng tròn một lượt').toHaveCount(20);
+  await expect(page.locator('.pickle-final'), 'vòng chung kết có 2 bán kết, 1 trận tranh Vàng–Bạc, 1 trận tranh Đồng').toHaveCount(4);
+  await expect(page.locator('.pickle-final .bracket-slot')).toHaveCount(8);
+});
+
+test('lịch lượt 1 khớp đúng bốn cặp đấu trên bốn sân của ảnh tham chiếu', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#draw-tab-2').click();
+  const round = page.locator('.pickle-round').first();
+  await expect(round).toContainText('Lượt 1');
+  const matches = round.locator('.pickle-match');
+  await expect(matches).toHaveCount(4);
+  await expect(matches.nth(0)).toContainText(NHAT_A);
+  await expect(matches.nth(0)).toContainText(NHI_A);
+  await expect(matches.nth(2)).toContainText('Minh Hiếu + Huy Tuân');
+  await expect(matches.nth(2)).toContainText(NHI_B);
+  await expect(matches.nth(3)).toContainText(NHAT_B);
 });
 
 test('4 môn còn lại chỉ hiện bảng đấu và chỉ hiện nút Nhập bảng đấu', async ({ page }) => {
@@ -26,9 +69,9 @@ test('4 môn còn lại chỉ hiện bảng đấu và chỉ hiện nút Nhập 
   for (const i of [0, 1, 3, 4]) {
     await page.locator(`#draw-tab-${i}`).click();
     await expect(page.locator('#draw-panel .draw-sheet')).toBeVisible();
-    await expect(page.locator('#draw-panel .bracket-sheet'), `tab ${i} không dùng sơ đồ`).toHaveCount(0);
+    await expect(page.locator('#draw-panel .bracket-sheet'), `tab ${i} không dùng vòng bảng`).toHaveCount(0);
     await expect(page.locator('#bang-dau [data-entry="draw"]'), `tab ${i} phải hiện nút Nhập bảng đấu`).toBeVisible();
-    await expect(page.locator('#bang-dau [data-entry="bracket"]'), `tab ${i} không được hiện nút Nhập sơ đồ`).toBeHidden();
+    await expect(page.locator('#bang-dau [data-entry="bracket"]'), `tab ${i} không được hiện nút Nhập vòng bảng`).toBeHidden();
   }
 });
 
@@ -39,13 +82,67 @@ test('lúc mới tải trang và mỗi lần đổi tab, đúng một nút nhậ
   await expect(page.locator('#bang-dau [data-entry]'),
     'cả hai nút phải luôn tồn tại; toBeHidden cũng xanh khi phần tử biến mất').toHaveCount(2);
   await expect(draw, 'tab mặc định là Kéo co nên phải hiện nút Nhập bảng đấu').toBeVisible();
-  await expect(bracket, 'tab mặc định là Kéo co nên phải ẩn nút Nhập sơ đồ').toBeHidden();
+  await expect(bracket, 'tab mặc định là Kéo co nên phải ẩn nút Nhập vòng bảng').toBeHidden();
   for (const i of [2, 0, 2, 4, 2]) {
     await page.locator(`#draw-tab-${i}`).click();
     const pickle = i === 2;
     await expect(draw, `tab ${i}: nút Nhập bảng đấu phải ${pickle ? 'ẩn' : 'hiện'}`).toBeVisible({ visible: !pickle });
-    await expect(bracket, `tab ${i}: nút Nhập sơ đồ phải ${pickle ? 'hiện' : 'ẩn'}`).toBeVisible({ visible: pickle });
+    await expect(bracket, `tab ${i}: nút Nhập vòng bảng phải ${pickle ? 'hiện' : 'ẩn'}`).toBeVisible({ visible: pickle });
   }
+});
+
+test('hai bán kết và hai trận tranh huy chương tự suy ra từ Nhất Nhì bảng và đội thắng', async ({ page }) => {
+  await servePickleWithoutWritingSharedDb(page, pickleData({
+    groups: { A: { first: 0, second: 2 }, B: { first: 3, second: 1 } },
+    finals: {
+      SF1: { score: '11-9', winner: 1 }, SF2: { score: '11-4', winner: 2 },
+      GOLD: { score: '', winner: null }, BRONZE: { score: '', winner: null },
+    },
+  }));
+  await page.goto('/');
+  await page.locator('#draw-tab-2').click();
+  const finals = page.locator('.pickle-final');
+  await expect(finals.nth(0), 'Bán kết 1 = Nhất bảng A gặp Nhì bảng B').toContainText(NHAT_A);
+  await expect(finals.nth(0)).toContainText(NHI_B);
+  await expect(finals.nth(1), 'Bán kết 2 = Nhất bảng B gặp Nhì bảng A').toContainText(NHAT_B);
+  await expect(finals.nth(1)).toContainText(NHI_A);
+  await expect(finals.nth(2), 'tranh Vàng–Bạc là hai đội THẮNG bán kết').toContainText(NHAT_A);
+  await expect(finals.nth(2)).toContainText(NHI_A);
+  await expect(finals.nth(3), 'tranh Đồng là hai đội THUA bán kết').toContainText(NHI_B);
+  await expect(finals.nth(3)).toContainText(NHAT_B);
+});
+
+test('trận chung kết đã có đội thắng nhưng chưa nhập tỉ số vẫn hiện ô tỉ số để còn sửa được', async ({ page }) => {
+  await servePickleWithoutWritingSharedDb(page, pickleData({
+    groups: { A: { first: 0, second: 2 }, B: { first: 3, second: 1 } },
+    finals: {
+      SF1: { score: '', winner: 1 }, SF2: { score: '', winner: 2 },
+      GOLD: { score: '', winner: null }, BRONZE: { score: '', winner: null },
+    },
+  }));
+  await page.goto('/');
+  await page.locator('#draw-tab-2').click();
+  const sf1 = page.locator('.pickle-final').first();
+  await expect(sf1.locator('.pickle-score'),
+    'có đội thắng thì phải còn ô tỉ số, nếu không admin mất chỗ bấm để sửa nhầm lẫn').toHaveCount(1);
+  await expect(sf1.locator('.pickle-score')).toHaveText('—');
+  await expect(sf1.locator('.bracket-slot.is-winner')).toHaveCount(1);
+  await expect(page.locator('.pickle-final').nth(2).locator('.pickle-score'),
+    'trận chưa có đội thắng lẫn tỉ số thì không hiện ô tỉ số').toHaveCount(0);
+});
+
+test('dòng dữ liệu còn giữ hình dạng sơ đồ cũ vẫn hiện vòng bảng rỗng, không ném lỗi', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', e => errors.push(String(e)));
+  await servePickleWithoutWritingSharedDb(page, { teams: ['AB','CD','EF','GH','JK','LM','XC','VB'], matches: { QF1: { score: '2-1', winner: 1 } } });
+  await page.goto('/');
+  await page.locator('#draw-tab-2').click();
+  expect(await page.evaluate(() => JSON.stringify(pickleData)),
+    'dữ liệu hình dạng cũ phải thật sự tới được trang, nếu không phép thử này xanh vô nghĩa').toContain('QF1');
+  await expect(page.locator('.pickle-match')).toHaveCount(20);
+  await expect(page.locator('.pickle-score'), 'dữ liệu sơ đồ cũ không được hiểu thành tỉ số vòng bảng').toHaveCount(0);
+  await expect(page.locator('.pickle-final .bracket-slot.is-empty')).toHaveCount(8);
+  expect(errors, 'dữ liệu hình dạng cũ không được làm vỡ app.js').toEqual([]);
 });
 
 test('form nhập bảng đấu bỏ Pickleball nhưng giữ nguyên chỉ số môn của 4 môn còn lại', async ({ page }) => {
@@ -68,11 +165,16 @@ test('form nhập bảng đấu bỏ Pickleball nhưng giữ nguyên chỉ số 
 });
 
 test('người xem ẩn danh không thấy bất kỳ nút Xóa nào', async ({ page }) => {
+  await servePickleWithoutWritingSharedDb(page, pickleData({
+    scores: { ...pickleData().scores, R1C1: '11-7' },
+    finals: { ...pickleData().finals, SF1: { score: '11-9', winner: 1 } },
+  }));
   await page.goto('/');
   await page.locator('#draw-tab-2').click();
-  await expect(page.locator('.bracket')).toBeVisible();
+  await expect(page.locator('.pickle-groups')).toBeVisible();
+  await expect(page.locator('.pickle-score'),
+    'phải có tỉ số hiển thị, nếu không thì phép thử vắng nút Xóa là xanh vô nghĩa').toHaveCount(2);
   await expect(page.locator('.row-delete')).toHaveCount(0);
-  await expect(page.locator('.bracket-del')).toHaveCount(0);
   await expect(page.locator('.bracket-del-match')).toHaveCount(0);
   // Cột thao tác cũng không được chiếm chỗ trong bảng kết quả.
   await expect(page.locator('.results-table .row-actions')).toHaveCount(0);
@@ -135,5 +237,6 @@ test('bấm Không trong modal xác nhận thì không xóa gì', async ({ page 
   await expect(row).toBeVisible();
 
   // Dọn lại để lần chạy sau không tích dữ liệu thừa.
-  await page.request.delete('/api/admin/results', { headers: { Origin: origin }, data: { id, revision: 1 } });
+  const cleaned = await page.request.delete('/api/admin/results', { headers: { Origin: origin }, data: { id, revision: 1 } });
+  expect(cleaned.status(), 'lệnh dọn phải thành công, nếu không lần chạy sau sẽ lệch dữ liệu').toBe(200);
 });

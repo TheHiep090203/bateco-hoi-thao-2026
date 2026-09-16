@@ -38,11 +38,15 @@ const TEAMS = [
   'Đội tuyển Khối Văn phòng Tổng hợp Hà Nội',
   'Đội tuyển Khối Kỹ thuật Vận hành Sản xuất',
 ];
-const MATCHES = {
-  QF1:{score:'2–1',winner:1}, QF2:{score:'2–0',winner:2},
-  QF3:{score:'2–1',winner:1}, QF4:{score:'0–2',winner:2},
-  SF1:{score:'2–1',winner:1}, SF2:{score:'1–2',winner:2},
-  F:{score:'3–2',winner:1},
+const SCORE_CODES = [];
+for (let r = 1; r <= 5; r++) for (let c = 1; c <= 4; c++) SCORE_CODES.push(`R${r}C${c}`);
+const PICKLE_DATA = {
+  scores: Object.fromEntries(SCORE_CODES.map((c, i) => [c, i % 2 ? '' : '11–7'])),
+  groups: { A: { first: 0, second: 2 }, B: { first: 3, second: 1 } },
+  finals: {
+    SF1:{score:'11–9',winner:1}, SF2:{score:'11–4',winner:2},
+    GOLD:{score:'12–10',winner:1}, BRONZE:{score:'11–6',winner:2},
+  },
 };
 
 // Seed dữ liệu cố ý khắc nghiệt: tên dài, có dấu, có xuống dòng. Trả về id kết quả để dọn.
@@ -70,7 +74,7 @@ async function seed(page, origin){
     ] } });
   expect(d.status(), await d.text()).toBe(200);
   const b = await page.request.post('/api/admin/bracket', { headers:{Origin:origin}, data:{
-    sport_id: 3, teams: TEAMS, matches: MATCHES } });
+    sport_id: 3, ...PICKLE_DATA } });
   expect(b.status(), await b.text()).toBe(200);
 }
 
@@ -102,7 +106,7 @@ async function openPickleballWithAdmin(page){
   await expect(page.locator('#huy-chuong tbody tr')).toHaveCount(3, { timeout: 15000 });
   await page.locator(`#draw-tab-${PICKLE}`).click();
   // Nút Xóa chỉ mọc sau khi refreshAdminSession() lật adminSession sang true.
-  await expect(page.locator('.bracket-del').first()).toBeVisible({ timeout: 15000 });
+  await expect(page.locator('.bracket-del-match').first()).toBeVisible({ timeout: 15000 });
 }
 
 test('quy tắc mobile trong modal admin thật sự được áp dụng', async ({ page }) => {
@@ -136,9 +140,9 @@ test('mọi nút thao tác đạt ngưỡng vùng chạm của WCAG 2.5.8', asyn
   const entry = await page.locator('#ket-qua .entry-button').boundingBox();
   expect(entry.height).toBeGreaterThanOrEqual(44);
 
-  // Hai nút trong sơ đồ giữ nguyên hộp nhìn thấy (21px và ~14px) để không phá
-  // layout; vùng chạm được nong bằng ::after nên phải đo bằng elementFromPoint.
-  for (const sel of ['.bracket-del', '.bracket-del-match']){
+  // Nút xóa tỉ số giữ nguyên hộp nhìn thấy (~14px) để không phá layout; vùng chạm
+  // được nong bằng ::after nên phải đo bằng elementFromPoint.
+  for (const sel of ['.bracket-del-match']){
     await page.locator(sel).first().scrollIntoViewIfNeeded();
     const area = await hitArea(page, sel);
     expect(area, `${sel} không tìm thấy`).not.toBeNull();

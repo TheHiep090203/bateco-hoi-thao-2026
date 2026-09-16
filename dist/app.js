@@ -67,41 +67,55 @@ function renderOfficialRules(i){const panel=document.querySelector('#rules-panel
  panel.querySelectorAll('[data-athletics]').forEach(b=>b.onclick=()=>{selectedAthletics=b.dataset.athletics;renderOfficialRules(1);panel.querySelector(`[data-athletics="${selectedAthletics}"]`).focus()});
 }
 
-// Cây đấu loại trực tiếp 8 đội của Pickleball. Đội vào vòng sau suy ra từ winner của
-// từng trận, không lưu riêng, nên sơ đồ không bao giờ tự mâu thuẫn với kết quả.
-let bracketData=null;
+let pickleData=null;
 // Phiên admin, đặt lại sau mỗi lần kiểm /api/admin/session. Ẩn nút Xóa chỉ là UX:
 // chốt thật nằm ở isAdmin() phía server trên mọi route ghi.
 let adminSession=false;
-const bracketQuarters=[['QF1',0,1],['QF2',2,3],['QF3',4,5],['QF4',6,7]];
-const bracketMatchLabels={QF1:'Tứ kết 1',QF2:'Tứ kết 2',QF3:'Tứ kết 3',QF4:'Tứ kết 4',SF1:'Bán kết 1',SF2:'Bán kết 2',F:'Chung kết'};
-const bracketSlotLabels={QF1:['WIN 1','WIN 2'],QF2:['WIN 3','WIN 4'],QF3:['WIN 5','WIN 6'],QF4:['WIN 7','WIN 8'],SF1:['BK1','BK2'],SF2:['BK3','BK4'],F:['Thắng BK1/BK2','Thắng BK3/BK4']};
-const emptyBracket=()=>({teams:new Array(8).fill(''),matches:Object.fromEntries(Object.keys(bracketMatchLabels).map(c=>[c,{score:'',winner:null}]))});
-function bracketSides(d){const t=d.teams,pick=(code,a,b)=>{const m=d.matches[code];return m&&m.winner===1?a:m&&m.winner===2?b:''};
- const bk=bracketQuarters.map(([c,i,j])=>pick(c,t[i],t[j])),sf=[pick('SF1',bk[0],bk[1]),pick('SF2',bk[2],bk[3])];
- return {sides:{QF1:[t[0],t[1]],QF2:[t[2],t[3]],QF3:[t[4],t[5]],QF4:[t[6],t[7]],SF1:[bk[0],bk[1]],SF2:[bk[2],bk[3]],F:[sf[0],sf[1]]},bk,sf}}
-function bracketSlot(name,label,winner,tag,delTeam){return `<div class="bracket-slot${winner?' is-winner':''}${name?'':' is-empty'}">${tag?`<span class="bracket-tag">${officialText(tag)}</span>`:''}${name&&adminSession&&delTeam!==undefined?`<button type="button" class="bracket-del" data-del-team="${delTeam}" aria-label="Xóa đội ở suất ${officialText(label)}">×</button>`:''}${name?`<small>${officialText(label)}</small>${officialText(name)}`:officialText(label)}</div>`}
-function bracketPair(d,code,pair,labels,tag,idx){const m=d.matches[code];
- return `<div class="bracket-pair">${bracketSlot(pair[0],labels[0],m.winner===1,tag,idx&&idx[0])}${bracketSlot(pair[1],labels[1],m.winner===2,undefined,idx&&idx[1])}${bracketScore(code,m)}</div>`}
-function bracketScore(code,m){if(!m.score&&!m.winner)return '';
- return `<span class="bracket-score">${m.score?officialText(m.score):'—'}${adminSession?`<button type="button" class="bracket-del-match" data-del-match="${code}" aria-label="Xóa kết quả ${officialText(bracketMatchLabels[code])}">×</button>`:''}</span>`}
-function bracketHtml(){const d=bracketData||emptyBracket(),{sides,sf}=bracketSides(d),f=d.matches.F;
- const first=f.winner===1?sf[0]:f.winner===2?sf[1]:'',second=f.winner===1?sf[1]:f.winner===2?sf[0]:'';
- const quarters=bracketQuarters.map(([code,i,j],k)=>bracketPair(d,code,sides[code],bracketSlotLabels[code],'ĐỘI '+(k+1),[i,j])).join('');
- const semis=bracketPair(d,'SF1',sides.SF1,bracketSlotLabels.SF1,'')+bracketPair(d,'SF2',sides.SF2,bracketSlotLabels.SF2,'');
- const final=`<div class="bracket-pair">${bracketSlot(first,'NHẤT',!!first)}${bracketSlot(second,'NHÌ',false)}${bracketScore('F',f)}</div>`;
- return `<div class="bracket-scroll"><div class="bracket"><div class="bracket-col">${quarters}</div><div class="bracket-col">${semis}</div><div class="bracket-col bracket-final">${final}</div></div></div>`}
+const pickleGroups={A:[['Hoàng Nam + Huyền Trang','TP'],['Đăng Hiếu + Quang Huy','TP'],['Đức Anh + Thanh Ngà','BP'],['Văn Hưng + Thái Đan','CP'],['Chí Hoàn + Văn Hải','CP']],B:[['Minh Hiếu + Huy Tuân','CP'],['Văn Tùng + Thu Hường','CP'],['Minh Toàn + Khánh Linh','BP'],['Tuấn Lộc + Thị Lương','TP'],['Bích Phượng + Đăng Tiến','BP']]};
+const pickleRounds=[[['A',0,2],['A',1,3],['B',0,1],['B',2,3]],[['A',0,1],['A',2,4],['B',0,2],['B',1,4]],[['A',0,3],['A',1,4],['B',0,3],['B',2,4]],[['A',0,4],['A',2,3],['B',0,4],['B',1,3]],[['A',2,1],['A',3,4],['B',1,2],['B',3,4]]];
+const pickleScoreCodes=pickleRounds.map((round,r)=>round.map((m,c)=>`R${r+1}C${c+1}`)).flat();
+const pickleFinalLabels={SF1:'Bán kết 1',SF2:'Bán kết 2',GOLD:'Tranh Huy chương Vàng',BRONZE:'Tranh Huy chương Đồng'};
+const pickleFinalSlots={SF1:['Nhất bảng A','Nhì bảng B'],SF2:['Nhất bảng B','Nhì bảng A'],GOLD:['Thắng bán kết 1','Thắng bán kết 2'],BRONZE:['Thua bán kết 1','Thua bán kết 2']};
+const pickleFinalCodes=Object.keys(pickleFinalLabels);
+const emptyPickle=()=>({scores:Object.fromEntries(pickleScoreCodes.map(c=>[c,''])),groups:{A:{first:null,second:null},B:{first:null,second:null}},finals:Object.fromEntries(pickleFinalCodes.map(c=>[c,{score:'',winner:null}]))});
+const pickleState=()=>{const base=emptyPickle(),d=pickleData;
+ if(!d||typeof d!=='object')return base;
+ if(d.scores&&typeof d.scores==='object')for(const c of pickleScoreCodes)if(typeof d.scores[c]==='string')base.scores[c]=d.scores[c];
+ if(d.groups&&typeof d.groups==='object')for(const g of ['A','B']){const row=d.groups[g];if(!row||typeof row!=='object')continue;
+  for(const k of ['first','second'])if(Number.isInteger(row[k])&&row[k]>=0&&row[k]<=4)base.groups[g][k]=row[k]}
+ if(d.finals&&typeof d.finals==='object')for(const c of pickleFinalCodes){const m=d.finals[c];if(!m||typeof m!=='object')continue;
+  if(typeof m.score==='string')base.finals[c].score=m.score;
+  if(m.winner===1||m.winner===2)base.finals[c].winner=m.winner}
+ return base};
+const pickleName=(g,i)=>i===null?'':pickleGroups[g][i][0];
+const pickleSides=d=>{const seat=(g,k)=>pickleName(g,d.groups[g][k]);
+ const pick=(code,a,b)=>{const w=d.finals[code].winner;return w===1?a:w===2?b:''};
+ const drop=(code,a,b)=>{const w=d.finals[code].winner;return w===1?b:w===2?a:''};
+ const sf1=[seat('A','first'),seat('B','second')],sf2=[seat('B','first'),seat('A','second')];
+ return {SF1:sf1,SF2:sf2,GOLD:[pick('SF1',...sf1),pick('SF2',...sf2)],BRONZE:[drop('SF1',...sf1),drop('SF2',...sf2)]}};
+const pickleMatchLabel=code=>{const r=+code[1]-1,c=+code[3]-1,[g,i,j]=pickleRounds[r][c];return `Lượt ${r+1} · Sân ${c+1}: ${pickleGroups[g][i][0]} vs ${pickleGroups[g][j][0]}`};
+const pickleScoreHtml=(code,score,label,winner)=>(score||winner)?`<span class="pickle-score">${score?officialText(score):'—'}${adminSession?`<button type="button" class="bracket-del-match" data-del-match="${code}" aria-label="Xóa tỉ số ${officialText(label)}">×</button>`:''}</span>`:'';
+const pickleGroupsHtml=()=>`<div class="pickle-groups">${['A','B'].map(g=>`<div class="pickle-group"><h4>Bảng ${g}</h4><ol>${pickleGroups[g].map(([name,team])=>`<li class="pickle-seat"><span>${officialText(name)}</span><em>${officialText(team)}</em></li>`).join('')}</ol></div>`).join('')}</div>`;
+const pickleMatchHtml=(d,code,g,i,j,court)=>`<div class="pickle-match"><span class="pickle-court">Sân ${court}</span><span class="pickle-vs">${officialText(pickleGroups[g][i][0])}<i>vs</i>${officialText(pickleGroups[g][j][0])}</span>${pickleScoreHtml(code,d.scores[code],pickleMatchLabel(code))}</div>`;
+const pickleRoundsHtml=d=>`<div class="pickle-rounds">${pickleRounds.map((round,r)=>`<div class="pickle-round"><h4>Lượt ${r+1}</h4>${round.map(([g,i,j],c)=>pickleMatchHtml(d,`R${r+1}C${c+1}`,g,i,j,c+1)).join('')}</div>`).join('')}</div>`;
+const pickleSlotHtml=(name,label,winner)=>`<div class="bracket-slot${winner?' is-winner':''}${name?'':' is-empty'}">${name?`<small>${officialText(label)}</small>${officialText(name)}`:officialText(label)}</div>`;
+const picklePairHtml=(d,code,sides)=>{const m=d.finals[code],labels=pickleFinalSlots[code];
+ return `<div class="pickle-final"><h4>${officialText(pickleFinalLabels[code])}</h4><div class="bracket-pair">${pickleSlotHtml(sides[0],labels[0],m.winner===1)}${pickleSlotHtml(sides[1],labels[1],m.winner===2)}${pickleScoreHtml(code,m.score,pickleFinalLabels[code],m.winner)}</div></div>`};
+const pickleFinalsHtml=d=>{const sides=pickleSides(d);
+ return `<div class="pickle-finals">${pickleFinalCodes.map(c=>picklePairHtml(d,c,sides[c])).join('')}</div>`};
+const pickleHtml=()=>{const d=pickleState();
+ return `<h4 class="pickle-head">Thành phần bảng</h4>${pickleGroupsHtml()}<h4 class="pickle-head">Lịch thi đấu vòng bảng</h4>${pickleRoundsHtml(d)}<h4 class="pickle-head">Vòng chung kết</h4>${pickleFinalsHtml(d)}`};
 function syncDrawEntryButtons(){const a=document.querySelector('#bang-dau [data-draw][aria-selected="true"]'),pickle=!!a&&Number(a.dataset.draw)===2;
  for(const b of document.querySelectorAll('#bang-dau [data-entry]'))b.hidden=(b.dataset.entry==='bracket')!==pickle}
 function renderSportPanel(prefix,i){
  const s=competitionViews[i],d=officialCompetitionData[i],panel=document.querySelector(`#${prefix}-panel`);
  document.querySelectorAll(`[data-${prefix}]`).forEach(b=>{const active=Number(b.dataset[prefix])===i;b.setAttribute('aria-selected',active);b.tabIndex=active?0:-1});panel.setAttribute('aria-labelledby',`${prefix}-tab-${i}`);
- if(prefix==='draw'){panel.innerHTML=i===2?`<div class="bracket-sheet"><h3>Sơ đồ loại trực tiếp</h3>${bracketHtml()}</div>`:`<div class="draw-sheet"><h3>${s.label}</h3><div class="draw-columns">${s.columns.map(c=>`<span>${c}</span>`).join('')}</div>${d.rows.length?`<div class="official-rows">${d.rows.map((row,ri)=>`<div class="official-row${adminSession?' has-admin':''}">${s.columns.map((label,k)=>`<div><small>${label}</small><span>${officialText(row[k])}</span></div>`).join('')}${adminSession?`<div class="row-actions"><button type="button" class="row-delete" data-del-draw="${ri}" data-del-sport="${i}">Xóa</button></div>`:''}</div>`).join('')}</div>`:`<p class="pending">Chưa có ${i===1?'danh sách nội dung, VĐV và lượt chạy':'bảng đấu và cặp đấu'} chính thức.</p>`}</div>`;syncDrawEntryButtons()}
+ if(prefix==='draw'){panel.innerHTML=i===2?`<div class="bracket-sheet"><h3>Vòng bảng và chung kết</h3>${pickleHtml()}</div>`:`<div class="draw-sheet"><h3>${s.label}</h3><div class="draw-columns">${s.columns.map(c=>`<span>${c}</span>`).join('')}</div>${d.rows.length?`<div class="official-rows">${d.rows.map((row,ri)=>`<div class="official-row${adminSession?' has-admin':''}">${s.columns.map((label,k)=>`<div><small>${label}</small><span>${officialText(row[k])}</span></div>`).join('')}${adminSession?`<div class="row-actions"><button type="button" class="row-delete" data-del-draw="${ri}" data-del-sport="${i}">Xóa</button></div>`:''}</div>`).join('')}</div>`:`<p class="pending">Chưa có ${i===1?'danh sách nội dung, VĐV và lượt chạy':'bảng đấu và cặp đấu'} chính thức.</p>`}</div>`;syncDrawEntryButtons()}
  else renderOfficialRules(i);
 }
 for(const prefix of ['draw','rules']){renderSportPanel(prefix,0);document.querySelectorAll(`[data-${prefix}]`).forEach(b=>{b.onclick=()=>renderSportPanel(prefix,Number(b.dataset[prefix]));b.onkeydown=e=>{let i=Number(b.dataset[prefix]);if(e.key==='ArrowRight')i=(i+1)%5;else if(e.key==='ArrowLeft')i=(i+4)%5;else if(e.key==='Home')i=0;else if(e.key==='End')i=4;else return;e.preventDefault();renderSportPanel(prefix,i);document.querySelector(`#${prefix}-tab-${i}`).focus()}})}
 document.querySelectorAll('[data-arena]').forEach(b=>b.onclick=()=>{const i=Number(b.dataset.arena);renderSportPanel('rules',i);document.querySelector('#luat-thi-dau').scrollIntoView({behavior:'smooth',block:'start'});document.querySelector(`#rules-tab-${i}`).focus({preventScroll:true})});
-for(const [id,kind,label] of [['bang-dau','draw','Nhập bảng đấu'],['bang-dau','bracket','Nhập sơ đồ'],['huy-chuong','medal','Nhập huy chương'],['ket-qua','result','Nhập kết quả'],['luat-thi-dau','rules','Nhập luật thi đấu']])document.querySelector('#'+id+' .section-head').insertAdjacentHTML('beforeend',`<button type="button" class="entry-button" data-entry="${kind}">${label}</button>`);syncDrawEntryButtons();
+for(const [id,kind,label] of [['bang-dau','draw','Nhập bảng đấu'],['bang-dau','bracket','Nhập vòng bảng'],['huy-chuong','medal','Nhập huy chương'],['ket-qua','result','Nhập kết quả'],['luat-thi-dau','rules','Nhập luật thi đấu']])document.querySelector('#'+id+' .section-head').insertAdjacentHTML('beforeend',`<button type="button" class="entry-button" data-entry="${kind}">${label}</button>`);syncDrawEntryButtons();
 const navLinks=[...mainNav.querySelectorAll('a')];
 function updateActiveNav(){const boundary=document.querySelector('header').getBoundingClientRect().height+40;let active=null;for(const a of navLinks){if(document.querySelector(a.hash).getBoundingClientRect().top<=boundary)active=a}navLinks.forEach(a=>{if(a===active)a.setAttribute('aria-current','location');else a.removeAttribute('aria-current')})}
 window.addEventListener('scroll',updateActiveNav,{passive:true});window.addEventListener('resize',updateActiveNav);updateActiveNav();
