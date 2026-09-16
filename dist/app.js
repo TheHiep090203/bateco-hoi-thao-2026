@@ -71,15 +71,20 @@ let pickleData=null;
 // Phiên admin, đặt lại sau mỗi lần kiểm /api/admin/session. Ẩn nút Xóa chỉ là UX:
 // chốt thật nằm ở isAdmin() phía server trên mọi route ghi.
 let adminSession=false;
-const pickleGroups={A:[['Hoàng Nam + Huyền Trang','TP'],['Đăng Hiếu + Quang Huy','TP'],['Đức Anh + Thanh Ngà','BP'],['Văn Hưng + Thái Đan','CP'],['Chí Hoàn + Văn Hải','CP']],B:[['Minh Hiếu + Huy Tuân','CP'],['Văn Tùng + Thu Hường','CP'],['Minh Toàn + Khánh Linh','BP'],['Tuấn Lộc + Thị Lương','TP'],['Bích Phượng + Đăng Tiến','BP']]};
+const pickleGroups={A:[['Hoàng Nam','Huyền Trang','TP'],['Đăng Hiếu','Quang Huy','TP'],['Đức Anh','Thanh Ngà','BP'],['Văn Hưng','Thái Đan','CP'],['Chí Hoàn','Văn Hải','CP']],B:[['Minh Hiếu','Huy Tuân','CP'],['Văn Tùng','Thu Hường','CP'],['Minh Toàn','Khánh Linh','BP'],['Tuấn Lộc','Thị Lương','TP'],['Bích Phượng','Đăng Tiến','BP']]};
+const pickleAlliances=['TP','BP','CP'];
 const pickleRounds=[[['A',0,2],['A',1,3],['B',0,1],['B',2,3]],[['A',0,1],['A',2,4],['B',0,2],['B',1,4]],[['A',0,3],['A',1,4],['B',0,3],['B',2,4]],[['A',0,4],['A',2,3],['B',0,4],['B',1,3]],[['A',2,1],['A',3,4],['B',1,2],['B',3,4]]];
 const pickleScoreCodes=pickleRounds.map((round,r)=>round.map((m,c)=>`R${r+1}C${c+1}`)).flat();
 const pickleFinalLabels={SF1:'Bán kết 1',SF2:'Bán kết 2',GOLD:'Tranh Huy chương Vàng',BRONZE:'Tranh Huy chương Đồng'};
 const pickleFinalSlots={SF1:['Nhất bảng A','Nhì bảng B'],SF2:['Nhất bảng B','Nhì bảng A'],GOLD:['Thắng bán kết 1','Thắng bán kết 2'],BRONZE:['Thua bán kết 1','Thua bán kết 2']};
 const pickleFinalCodes=Object.keys(pickleFinalLabels);
-const emptyPickle=()=>({scores:Object.fromEntries(pickleScoreCodes.map(c=>[c,''])),groups:{A:{first:null,second:null},B:{first:null,second:null}},finals:Object.fromEntries(pickleFinalCodes.map(c=>[c,{score:'',winner:null}]))});
+const emptyPickle=()=>({pairs:Object.fromEntries(['A','B'].map(g=>[g,pickleGroups[g].map(()=>['','',''])])),scores:Object.fromEntries(pickleScoreCodes.map(c=>[c,''])),groups:{A:{first:null,second:null},B:{first:null,second:null}},finals:Object.fromEntries(pickleFinalCodes.map(c=>[c,{score:'',winner:null}]))});
 const pickleState=()=>{const base=emptyPickle(),d=pickleData;
  if(!d||typeof d!=='object')return base;
+ if(d.pairs&&typeof d.pairs==='object')for(const g of ['A','B']){const list=d.pairs[g];if(!Array.isArray(list))continue;
+  list.slice(0,5).forEach((row,i)=>{if(!Array.isArray(row))return;
+   for(const k of [0,1])if(typeof row[k]==='string')base.pairs[g][i][k]=row[k];
+   if(pickleAlliances.includes(row[2]))base.pairs[g][i][2]=row[2]})}
  if(d.scores&&typeof d.scores==='object')for(const c of pickleScoreCodes)if(typeof d.scores[c]==='string')base.scores[c]=d.scores[c];
  if(d.groups&&typeof d.groups==='object')for(const g of ['A','B']){const row=d.groups[g];if(!row||typeof row!=='object')continue;
   for(const k of ['first','second'])if(Number.isInteger(row[k])&&row[k]>=0&&row[k]<=4)base.groups[g][k]=row[k]}
@@ -87,16 +92,18 @@ const pickleState=()=>{const base=emptyPickle(),d=pickleData;
   if(typeof m.score==='string')base.finals[c].score=m.score;
   if(m.winner===1||m.winner===2)base.finals[c].winner=m.winner}
  return base};
-const pickleName=(g,i)=>i===null?'':pickleGroups[g][i][0];
-const pickleSides=d=>{const seat=(g,k)=>pickleName(g,d.groups[g][k]);
+const picklePair=(d,g,i)=>{const base=pickleGroups[g][i],over=d.pairs[g][i];return [over[0]||base[0],over[1]||base[1],over[2]||base[2]]};
+const pickleTeam=(d,g,i)=>{const p=picklePair(d,g,i);return p[0]+' + '+p[1]};
+const pickleName=(d,g,i)=>i===null?'':pickleTeam(d,g,i);
+const pickleSides=d=>{const seat=(g,k)=>pickleName(d,g,d.groups[g][k]);
  const pick=(code,a,b)=>{const w=d.finals[code].winner;return w===1?a:w===2?b:''};
  const drop=(code,a,b)=>{const w=d.finals[code].winner;return w===1?b:w===2?a:''};
  const sf1=[seat('A','first'),seat('B','second')],sf2=[seat('B','first'),seat('A','second')];
  return {SF1:sf1,SF2:sf2,GOLD:[pick('SF1',...sf1),pick('SF2',...sf2)],BRONZE:[drop('SF1',...sf1),drop('SF2',...sf2)]}};
-const pickleMatchLabel=code=>{const r=+code[1]-1,c=+code[3]-1,[g,i,j]=pickleRounds[r][c];return `Lượt ${r+1} · Sân ${c+1}: ${pickleGroups[g][i][0]} vs ${pickleGroups[g][j][0]}`};
+const pickleMatchLabel=(d,code)=>{const r=+code[1]-1,c=+code[3]-1,[g,i,j]=pickleRounds[r][c];return `Lượt ${r+1} · Sân ${c+1}: ${pickleTeam(d,g,i)} vs ${pickleTeam(d,g,j)}`};
 const pickleScoreHtml=(code,score,label,winner)=>(score||winner)?`<span class="pickle-score">${score?officialText(score):'—'}${adminSession?`<button type="button" class="bracket-del-match" data-del-match="${code}" aria-label="Xóa tỉ số ${officialText(label)}">×</button>`:''}</span>`:'';
-const pickleGroupsHtml=()=>`<div class="pickle-groups">${['A','B'].map(g=>`<div class="pickle-group"><h4>Bảng ${g}</h4><ol>${pickleGroups[g].map(([name,team])=>`<li class="pickle-seat"><span>${officialText(name)}</span><em>${officialText(team)}</em></li>`).join('')}</ol></div>`).join('')}</div>`;
-const pickleMatchHtml=(d,code,g,i,j,court)=>`<div class="pickle-match"><span class="pickle-court">Sân ${court}</span><span class="pickle-vs">${officialText(pickleGroups[g][i][0])}<i>vs</i>${officialText(pickleGroups[g][j][0])}</span>${pickleScoreHtml(code,d.scores[code],pickleMatchLabel(code))}</div>`;
+const pickleGroupsHtml=d=>`<div class="pickle-groups">${['A','B'].map(g=>`<div class="pickle-group"><h4>Bảng ${g}</h4><ol>${pickleGroups[g].map((row,i)=>{const p=picklePair(d,g,i);return `<li class="pickle-seat"><span>${officialText(p[0]+' + '+p[1])}</span><em>${officialText(p[2])}</em></li>`}).join('')}</ol></div>`).join('')}</div>`;
+const pickleMatchHtml=(d,code,g,i,j,court)=>`<div class="pickle-match"><span class="pickle-court">Sân ${court}</span><span class="pickle-vs">${officialText(pickleTeam(d,g,i))}<i>vs</i>${officialText(pickleTeam(d,g,j))}</span>${pickleScoreHtml(code,d.scores[code],pickleMatchLabel(d,code))}</div>`;
 const pickleRoundsHtml=d=>`<div class="pickle-rounds">${pickleRounds.map((round,r)=>`<div class="pickle-round"><h4>Lượt ${r+1}</h4>${round.map(([g,i,j],c)=>pickleMatchHtml(d,`R${r+1}C${c+1}`,g,i,j,c+1)).join('')}</div>`).join('')}</div>`;
 const pickleSlotHtml=(name,label,winner)=>`<div class="bracket-slot${winner?' is-winner':''}${name?'':' is-empty'}">${name?`<small>${officialText(label)}</small>${officialText(name)}`:officialText(label)}</div>`;
 const picklePairHtml=(d,code,sides)=>{const m=d.finals[code],labels=pickleFinalSlots[code];
@@ -104,7 +111,7 @@ const picklePairHtml=(d,code,sides)=>{const m=d.finals[code],labels=pickleFinalS
 const pickleFinalsHtml=d=>{const sides=pickleSides(d);
  return `<div class="pickle-finals">${pickleFinalCodes.map(c=>picklePairHtml(d,c,sides[c])).join('')}</div>`};
 const pickleHtml=()=>{const d=pickleState();
- return `<h4 class="pickle-head">Thành phần bảng</h4>${pickleGroupsHtml()}<h4 class="pickle-head">Lịch thi đấu vòng bảng</h4>${pickleRoundsHtml(d)}<h4 class="pickle-head">Vòng chung kết</h4>${pickleFinalsHtml(d)}`};
+ return `<h4 class="pickle-head">Thành phần bảng</h4>${pickleGroupsHtml(d)}<h4 class="pickle-head">Lịch thi đấu vòng bảng</h4>${pickleRoundsHtml(d)}<h4 class="pickle-head">Vòng chung kết</h4>${pickleFinalsHtml(d)}`};
 function syncDrawEntryButtons(){const a=document.querySelector('#bang-dau [data-draw][aria-selected="true"]'),pickle=!!a&&Number(a.dataset.draw)===2;
  for(const b of document.querySelectorAll('#bang-dau [data-entry]'))b.hidden=(b.dataset.entry==='bracket')!==pickle}
 function renderSportPanel(prefix,i){

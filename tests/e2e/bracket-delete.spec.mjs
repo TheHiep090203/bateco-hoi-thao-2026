@@ -21,6 +21,7 @@ const NHI_B = 'Văn Tùng + Thu Hường';
 
 function pickleData(over = {}){
   return {
+    pairs: { A: [0,1,2,3,4].map(() => ['','','']), B: [0,1,2,3,4].map(() => ['','','']) },
     scores: Object.fromEntries(SCORE_CODES.map(c => [c, ''])),
     groups: { A: { first: null, second: null }, B: { first: null, second: null } },
     finals: Object.fromEntries(FINAL_CODES.map(c => [c, { score: '', winner: null }])),
@@ -143,6 +144,125 @@ test('dòng dữ liệu còn giữ hình dạng sơ đồ cũ vẫn hiện vòng
   await expect(page.locator('.pickle-score'), 'dữ liệu sơ đồ cũ không được hiểu thành tỉ số vòng bảng').toHaveCount(0);
   await expect(page.locator('.pickle-final .bracket-slot.is-empty')).toHaveCount(8);
   expect(errors, 'dữ liệu hình dạng cũ không được làm vỡ app.js').toEqual([]);
+});
+
+test('tên thành viên do admin sửa hiện ra khắp trang, kể cả trong lịch thi đấu', async ({ page }) => {
+  const pairs = { A: [0,1,2,3,4].map(() => ['','','']), B: [0,1,2,3,4].map(() => ['','','']) };
+  pairs.A[0] = ['Hoàng Nam', 'Dự Bị Thu Hà', 'BP'];
+  await servePickleWithoutWritingSharedDb(page, pickleData({
+    pairs,
+    groups: { A: { first: 0, second: 2 }, B: { first: 3, second: 1 } },
+    finals: { ...pickleData().finals, SF1: { score: '11-9', winner: 1 } },
+  }));
+  await page.goto('/');
+  await page.locator('#draw-tab-2').click();
+  const seat = page.locator('.pickle-group').first().locator('.pickle-seat').first();
+  await expect(seat, 'thành phần bảng phải hiện tên đã sửa').toContainText('Hoàng Nam + Dự Bị Thu Hà');
+  await expect(seat, 'nhãn liên minh sửa được cùng lúc').toContainText('BP');
+  await expect(page.locator('.pickle-round').first().locator('.pickle-match').first(),
+    'lịch thi đấu phải dùng tên mới chứ không giữ tên nướng sẵn').toContainText('Dự Bị Thu Hà');
+  await expect(page.locator('.pickle-final').first(),
+    'nhánh chung kết suy từ hạt giống nên cũng phải hiện tên mới').toContainText('Dự Bị Thu Hà');
+  await expect(page.locator('#draw-panel'), 'tên cũ không được còn sót lại ở đâu').not.toContainText('Huyền Trang');
+});
+
+test('đổi tên một đôi không làm mất tỉ số đã nhập vì tỉ số lưu theo hạt giống', async ({ page }) => {
+  const pairs = { A: [0,1,2,3,4].map(() => ['','','']), B: [0,1,2,3,4].map(() => ['','','']) };
+  pairs.A[0] = ['Hoàng Nam', 'Dự Bị Thu Hà', 'TP'];
+  await servePickleWithoutWritingSharedDb(page, pickleData({
+    pairs,
+    scores: { ...pickleData().scores, R1C1: '11-7' },
+  }));
+  await page.goto('/');
+  await page.locator('#draw-tab-2').click();
+  const first = page.locator('.pickle-round').first().locator('.pickle-match').first();
+  await expect(first, 'tỉ số phải còn nguyên sau khi đổi tên').toContainText('11-7');
+  await expect(first).toContainText('Dự Bị Thu Hà');
+});
+
+test('tên để trống thì quay về tên mặc định nướng sẵn', async ({ page }) => {
+  const pairs = { A: [0,1,2,3,4].map(() => ['','','']), B: [0,1,2,3,4].map(() => ['','','']) };
+  pairs.A[0] = ['', 'Dự Bị Thu Hà', ''];
+  await servePickleWithoutWritingSharedDb(page, pickleData({ pairs }));
+  await page.goto('/');
+  await page.locator('#draw-tab-2').click();
+  const seat = page.locator('.pickle-group').first().locator('.pickle-seat').first();
+  await expect(seat, 'ô trống nghĩa là dùng tên mặc định, chỉ ô có chữ mới đè lên').toContainText('Hoàng Nam + Dự Bị Thu Hà');
+  await expect(seat, 'nhãn liên minh để trống cũng quay về mặc định').toContainText('TP');
+});
+
+test('tên do admin nhập không bao giờ trở thành HTML trên trang công khai', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', e => errors.push(String(e)));
+  const pairs = { A: [0,1,2,3,4].map(() => ['','','']), B: [0,1,2,3,4].map(() => ['','','']) };
+  pairs.A[0] = ['a" onmouseover="x', '<img src=x onerror=y>', 'TP'];
+  await servePickleWithoutWritingSharedDb(page, pickleData({ pairs }));
+  await page.goto('/');
+  await page.locator('#draw-tab-2').click();
+  const seat = page.locator('.pickle-seat').first();
+  await expect(seat, 'tên phải hiện nguyên văn dạng chữ').toContainText('a" onmouseover="x + <img src=x onerror=y>');
+  await expect(page.locator('#draw-panel img'), 'không một thẻ img nào được sinh ra từ tên').toHaveCount(0);
+  await expect(page.locator('#draw-panel [onmouseover]'), 'không thuộc tính sự kiện nào bị chèn vào').toHaveCount(0);
+  expect(errors, 'tên độc hại không được làm vỡ trang').toEqual([]);
+});
+
+test('lưu form chỉ ghi phần admin thật sự sửa, nút khôi phục xoá hẳn phần đã sửa', async ({ page }) => {
+  const creds = credentials();
+  test.skip(!creds, 'Cần .env.local có ADMIN_USER và ADMIN_PASS');
+
+  await servePickleWithoutWritingSharedDb(page, pickleData());
+  const sent = [];
+  await page.route('**/api/admin/bracket', async route => {
+    sent.push(JSON.parse(route.request().postData()));
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true,"sport_id":3}' });
+  });
+
+  await page.goto('/');
+  const origin = new URL(page.url()).origin;
+  expect((await page.request.post('/api/admin/login', { headers: { Origin: origin }, data: creds })).status()).toBe(200);
+  await page.reload();
+  await page.locator('#draw-tab-2').click();
+  await page.locator('#bang-dau [data-entry="bracket"]').click();
+  await page.locator('#bracket-form').waitFor();
+
+  await page.locator('#bracket-form [data-pair="A.0.0"]').fill('Hoàng Nam');
+  await page.locator('#bracket-form [data-pair="A.0.1"]').fill('Dự Bị Thu Hà');
+  await page.locator('#bracket-save').click();
+  await expect.poll(() => sent.length).toBe(1);
+  expect(sent[0].pairs.A[0],
+    'gõ đúng tên mặc định phải lưu thành rỗng, chỉ tên khác mặc định mới được ghi đè')
+    .toEqual(['', 'Dự Bị Thu Hà', '']);
+  expect(sent[0].pairs.B[4], 'đôi không đụng tới phải hoàn toàn rỗng').toEqual(['', '', '']);
+
+  await page.locator('#bracket-form [data-pair="A.0.1"]').fill('Người Khác Hẳn');
+  await page.locator('#pickle-names-reset').click();
+  await expect(page.locator('#bracket-form [data-pair="A.0.1"]'),
+    'khôi phục phải xoá phần vừa sửa và trả ô về tên mặc định nướng sẵn').toHaveValue('Huyền Trang');
+  await page.locator('#bracket-save').click();
+  await expect.poll(() => sent.length).toBe(2);
+  expect(sent[1].pairs.A[0], 'sau khi khôi phục, tài liệu không được giữ lại tên đã sửa')
+    .toEqual(['', '', '']);
+});
+
+test('sửa xong một ô tên rồi bấm Tab thì con trỏ sang đúng ô kế tiếp', async ({ page }) => {
+  const creds = credentials();
+  test.skip(!creds, 'Cần .env.local có ADMIN_USER và ADMIN_PASS');
+
+  await servePickleWithoutWritingSharedDb(page, pickleData());
+  await page.goto('/');
+  const origin = new URL(page.url()).origin;
+  expect((await page.request.post('/api/admin/login', { headers: { Origin: origin }, data: creds })).status()).toBe(200);
+  await page.reload();
+  await page.locator('#draw-tab-2').click();
+  await page.locator('#bang-dau [data-entry="bracket"]').click();
+  await page.locator('#bracket-form').waitFor();
+
+  await page.locator('#bracket-form [data-pair="A.0.1"]').fill('Dự Bị Thu Hà');
+  await expect(page.locator('[data-vs="R1C1"]'),
+    'nhãn trận phải đổi theo ngay, không chờ rời khỏi ô').toContainText('Dự Bị Thu Hà');
+  await page.keyboard.press('Tab');
+  expect(await page.evaluate(() => document.activeElement?.dataset?.pair ?? 'MAT-FOCUS'),
+    'vẽ lại cả form lúc rời ô sẽ nuốt mất cú Tab và đẩy con trỏ về body').toBe('A.0.2');
 });
 
 test('form nhập bảng đấu bỏ Pickleball nhưng giữ nguyên chỉ số môn của 4 môn còn lại', async ({ page }) => {

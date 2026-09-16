@@ -28,6 +28,9 @@
 .bracket-slot.is-winner{background:#e7f3f2;border-left-color:#007e80;color:#00575c}
 /* Form nhập vòng bảng trong modal admin */
 #entry-dialog #bracket-form h3{font-size:16px;margin:22px 0 12px}
+#entry-dialog .pickle-name-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 92px;gap:0 14px;align-items:end}
+#entry-dialog .pickle-name-row label{margin-bottom:10px}
+@media(max-width:650px){#entry-dialog .pickle-name-row{grid-template-columns:1fr}}
 .pickle-head{margin:0;padding:18px 24px 0;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#60717b}
 .pickle-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:12px 24px 4px}
 .pickle-group{background:#f3f7f8;border:1px solid #cfdee3;border-radius:6px;padding:12px 14px}
