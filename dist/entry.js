@@ -14,7 +14,7 @@ function renderLogin(message){entryTitle.textContent='Đăng nhập để nhập
   try{await entryApi('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:form.elements.user.value,pass:form.elements.pass.value})});entryLock(false);renderStep()}
   catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Máy chủ chưa phản hồi. Vui lòng thử lại.':err.message;form.elements.pass.focus();form.elements.pass.select()}}}
 
-function renderStep(){document.querySelector('#entry-logout').hidden=false;entryKind==='draw'?renderDrawForm():entryKind==='bracket'?renderBracketForm():entryKind==='medal'?renderMedalForm():entryKind==='rules'?renderRulesForm():entryKind==='schedule'?renderScheduleForm():renderResultForm()}
+function renderStep(){document.querySelector('#entry-logout').hidden=false;entryKind==='draw'?renderDrawForm():entryKind==='bracket'?renderPickleForm():entryKind==='medal'?renderMedalForm():entryKind==='rules'?renderRulesForm():entryKind==='schedule'?renderScheduleForm():renderResultForm()}
 
 function renderResultForm(){entryTitle.textContent='Nhập kết quả thi đấu';
  entryBody.innerHTML=`<form id="entry-result"><label>Môn thi đấu<select name="sport_id" required></select></label><label>Trận/Phần thi<input name="event" required maxlength="160" autocomplete="off"></label><label>Đội/VĐV<textarea name="participants" required maxlength="1000" rows="2"></textarea></label><label>Kết quả<textarea name="score" required maxlength="1000" rows="2"></textarea></label><div class="actions"><button class="button orange" type="submit" id="entry-save">Lưu kết quả</button><button class="button" type="button" id="entry-new">Nhập kết quả mới</button></div><p id="entry-status" role="status"></p></form><div class="admin-list-head"><h3>Kết quả đã nhập</h3></div><div id="entry-list"></div>`;
@@ -111,7 +111,7 @@ function renderDrawForm(){entryTitle.textContent='Nhập bảng đấu';
   catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Bấm lưu lại để kiểm tra.':err.message}}}
 
 async function openEntry(button){entryTrigger=button;entryKind=button.dataset.entry;
- document.querySelector('#entry-eyebrow').textContent=entryKind==='draw'?'BẢNG ĐẤU':entryKind==='bracket'?'SƠ ĐỒ LOẠI TRỰC TIẾP':entryKind==='medal'?'HUY CHƯƠNG':entryKind==='rules'?'LUẬT THI ĐẤU':entryKind==='schedule'?'LỊCH TRÌNH':'KẾT QUẢ THI ĐẤU';
+ document.querySelector('#entry-eyebrow').textContent=entryKind==='draw'?'BẢNG ĐẤU':entryKind==='bracket'?'VÒNG BẢNG PICKLEBALL':entryKind==='medal'?'HUY CHƯƠNG':entryKind==='rules'?'LUẬT THI ĐẤU':entryKind==='schedule'?'LỊCH TRÌNH':'KẾT QUẢ THI ĐẤU';
  entryTitle.textContent='Đang kiểm tra phiên đăng nhập…';entryBody.innerHTML='';
  entryDialog.showModal();document.body.style.overflow='hidden';
  if(!liveData){entryBody.innerHTML='<p class="muted">Chưa tải được dữ liệu. Vui lòng đóng và thử lại.</p>';return}
@@ -123,23 +123,32 @@ entryDialog.addEventListener('cancel',e=>{if(entryBusy)e.preventDefault()});
 entryDialog.addEventListener('click',e=>{if(entryBusy||e.target!==entryDialog)return;const r=entryDialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)entryDialog.close()});
 entryDialog.addEventListener('close',()=>{document.body.style.overflow='';entryBody.innerHTML='';if(entryTrigger?.isConnected)entryTrigger.focus()});
 
-// Form sơ đồ: chỉ nhập 08 tên đội và kết quả 07 trận. Ô BK1–BK4, NHẤT, NHÌ suy ra
-// từ đội thắng nên không có chỗ nào để nhập lệch nhau.
-function renderBracketForm(){entryTitle.textContent='Nhập sơ đồ loại trực tiếp';
- const state=bracketData?JSON.parse(JSON.stringify(bracketData)):emptyBracket();
- entryBody.innerHTML=`<p class="muted">Lưu sẽ thay thế toàn bộ sơ đồ loại trực tiếp của Pickleball. Đội vào vòng sau được suy ra từ đội thắng, không nhập tay.</p><div id="bracket-form"></div><div class="actions"><button class="button orange" type="button" id="bracket-save">Lưu sơ đồ</button></div><p id="entry-status" role="status"></p>`;
+const pickleSeatOptions=(g,selected)=>['<option value="">Chưa xác định</option>',...pickleGroups[g].map(([name],i)=>`<option value="${i}"${selected===i?' selected':''}>${entryEsc(name)}</option>`)].join('');
+function renderPickleForm(){entryTitle.textContent='Nhập vòng bảng Pickleball';
+ const state=pickleState();
+ entryBody.innerHTML=`<p class="muted">Lưu sẽ thay thế toàn bộ tỉ số và kết quả vòng bảng của Pickleball. Hai đôi vào mỗi trận chung kết được suy ra từ Nhất/Nhì bảng và đội thắng bán kết, không nhập tay.</p><div id="bracket-form"></div><div class="actions"><button class="button orange" type="button" id="bracket-save">Lưu vòng bảng</button></div><p id="entry-status" role="status"></p>`;
  const host=entryBody.querySelector('#bracket-form'),status=entryBody.querySelector('#entry-status');
- function draw(){const {sides}=bracketSides(state);
-  host.innerHTML=`<h3>08 suất vào tứ kết</h3><div class="bracket-teams">${state.teams.map((v,i)=>`<label>WIN ${i+1}<input data-team="${i}" maxlength="120" autocomplete="off" value="${entryEsc(v)}"></label>`).join('')}</div><h3>Kết quả từng trận</h3>`
-   +Object.keys(bracketMatchLabels).map(code=>{const m=state.matches[code],pair=sides[code],names=bracketSlotLabels[code];
-    return `<div class="admin-record"><div class="record-details"><h4>${entryEsc(bracketMatchLabels[code])}</h4><label>Tỉ số<input data-score="${code}" maxlength="40" autocomplete="off" placeholder="ví dụ 2-1" value="${entryEsc(m.score)}"></label><label>Đội thắng<select data-winner="${code}"><option value=""${m.winner?'':' selected'}>Chưa đấu</option><option value="1"${m.winner===1?' selected':''}>${entryEsc(pair[0]||names[0])}</option><option value="2"${m.winner===2?' selected':''}>${entryEsc(pair[1]||names[1])}</option></select></label></div></div>`}).join('');
-  host.querySelectorAll('[data-team]').forEach(inp=>{inp.oninput=()=>{state.teams[+inp.dataset.team]=inp.value};inp.onchange=()=>{state.teams[+inp.dataset.team]=inp.value;draw()}});
-  host.querySelectorAll('[data-score]').forEach(inp=>inp.oninput=()=>{state.matches[inp.dataset.score].score=inp.value});
-  host.querySelectorAll('[data-winner]').forEach(sel=>sel.onchange=()=>{state.matches[sel.dataset.winner].winner=sel.value?Number(sel.value):null;draw()})}
+ const draw=()=>{const sides=pickleSides(state);
+  host.innerHTML='<h3>Tỉ số vòng bảng</h3>'
+   +pickleRounds.map((round,r)=>`<div class="admin-record"><div class="record-details"><h4>Lượt ${r+1}</h4>${round.map(([g,i,j],c)=>{const code=`R${r+1}C${c+1}`;
+    return `<label>Sân ${c+1} · ${entryEsc(pickleGroups[g][i][0])} vs ${entryEsc(pickleGroups[g][j][0])}<input data-score="${code}" maxlength="40" autocomplete="off" placeholder="ví dụ 11-7" value="${entryEsc(state.scores[code])}"></label>`}).join('')}</div></div>`).join('')
+   +'<h3>Nhất và Nhì mỗi bảng</h3>'
+   +['A','B'].map(g=>`<div class="admin-record"><div class="record-details"><h4>Bảng ${g}</h4><label>Nhất bảng<select data-seat="${g}.first">${pickleSeatOptions(g,state.groups[g].first)}</select></label><label>Nhì bảng<select data-seat="${g}.second">${pickleSeatOptions(g,state.groups[g].second)}</select></label></div></div>`).join('')
+   +'<h3>Vòng chung kết</h3>'
+   +pickleFinalCodes.map(code=>{const m=state.finals[code],pair=sides[code],names=pickleFinalSlots[code];
+    return `<div class="admin-record"><div class="record-details"><h4>${entryEsc(pickleFinalLabels[code])}</h4><label>Tỉ số<input data-score="${code}" maxlength="40" autocomplete="off" placeholder="ví dụ 11-9" value="${entryEsc(m.score)}"></label><label>Đội thắng<select data-winner="${code}"><option value=""${m.winner?'':' selected'}>Chưa đấu</option><option value="1"${m.winner===1?' selected':''}>${entryEsc(pair[0]||names[0])}</option><option value="2"${m.winner===2?' selected':''}>${entryEsc(pair[1]||names[1])}</option></select></label></div></div>`}).join('');
+  host.querySelectorAll('[data-score]').forEach(inp=>inp.oninput=()=>{const code=inp.dataset.score;
+   if(code in state.scores)state.scores[code]=inp.value;else state.finals[code].score=inp.value});
+  host.querySelectorAll('[data-seat]').forEach(sel=>sel.onchange=()=>{const [g,key]=sel.dataset.seat.split('.');
+   state.groups[g][key]=sel.value===''?null:Number(sel.value);draw()});
+  host.querySelectorAll('[data-winner]').forEach(sel=>sel.onchange=()=>{state.finals[sel.dataset.winner].winner=sel.value?Number(sel.value):null;draw()})};
  draw();
- entryBody.querySelector('#bracket-save').onclick=async()=>{if(entryBusy)return;entryLock(true);status.textContent='Đang lưu…';
-  try{await entryApi('/api/admin/bracket',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sport_id:3,teams:state.teams,matches:state.matches})});await sync(true);entryLock(false);
-   Object.assign(state,bracketData?JSON.parse(JSON.stringify(bracketData)):emptyBracket());draw();status.textContent='Đã lưu sơ đồ. Trang đã cập nhật.'}
+ entryBody.querySelector('#bracket-save').onclick=async()=>{if(entryBusy)return;
+  for(const g of ['A','B'])if(state.groups[g].first!==null&&state.groups[g].first===state.groups[g].second){status.textContent=`Bảng ${g}: Nhất bảng và Nhì bảng không thể là cùng một đôi.`;return}
+  for(const g of ['A','B'])if(state.groups[g].first===null&&state.groups[g].second!==null){status.textContent=`Bảng ${g}: chọn Nhì bảng thì phải chọn cả Nhất bảng.`;return}
+  entryLock(true);status.textContent='Đang lưu…';
+  try{await entryApi('/api/admin/bracket',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sport_id:3,scores:state.scores,groups:state.groups,finals:state.finals})});await sync(true);entryLock(false);
+   Object.assign(state,pickleState());draw();status.textContent='Đã lưu vòng bảng. Trang đã cập nhật.'}
   catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Bấm lưu lại để kiểm tra.':err.message}}}
 
 // Modal xác nhận dùng chung, thay hộp thoại mặc định của trình duyệt. Truyền showCancel=false
@@ -163,13 +172,13 @@ document.querySelector('#entry-logout').onclick=async()=>{if(entryBusy)return;
 
 // Xóa inline trên bảng công khai. Dùng uỷ quyền sự kiện vì live.js vẽ lại bảng mỗi 5 giây;
 // gắn trực tiếp vào từng nút sẽ mất sau lần vẽ kế tiếp.
-const postBracket=d=>entryApi('/api/admin/bracket',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sport_id:3,teams:d.teams,matches:d.matches})});
+const postBracket=d=>entryApi('/api/admin/bracket',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sport_id:3,scores:d.scores,groups:d.groups,finals:d.finals})});
 async function inlineDelete(btn,run){btn.disabled=true;
  try{await run();await sync(true)}
  catch(err){await refreshAdminSession();await confirmDialog(err.name==='TimeoutError'?'Chưa xác nhận được. Tải lại trang rồi kiểm tra trước khi xóa lại.':err.message,'Đã hiểu',false)}
  finally{btn.disabled=false}}
 document.addEventListener('click',async e=>{
- const btn=e.target.closest('[data-del-result],[data-del-draw],[data-del-team],[data-del-match]');
+ const btn=e.target.closest('[data-del-result],[data-del-draw],[data-del-match]');
  if(!btn||btn.disabled||entryBusy||!liveData)return;
  const d=btn.dataset;
  if(d.delResult){const r=liveData.results.find(x=>x.id===d.delResult);if(!r)return;
@@ -181,10 +190,10 @@ document.addEventListener('click',async e=>{
   if(!await confirmDialog('Xóa dòng này khỏi bảng đấu? Thao tác không thể hoàn tác.','Xóa'))return;
   rows.splice(index,1);
   return inlineDelete(btn,()=>entryApi('/api/admin/draws',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sport_id:sport+1,rows})}))}
- const next=JSON.parse(JSON.stringify(bracketData||emptyBracket()));
- if(d.delTeam!==undefined){const k=Number(d.delTeam);
-  if(!await confirmDialog(`Xóa đội ở suất WIN ${k+1}? Các vòng sau phụ thuộc vào suất này sẽ trống theo.`,'Xóa'))return;
-  next.teams[k]='';return inlineDelete(btn,()=>postBracket(next))}
- if(d.delMatch){
-  if(!await confirmDialog(`Xóa kết quả ${bracketMatchLabels[d.delMatch]}? Các vòng sau phụ thuộc vào kết quả này sẽ trống theo.`,'Xóa'))return;
-  next.matches[d.delMatch]={score:'',winner:null};return inlineDelete(btn,()=>postBracket(next))}});
+ if(d.delMatch){const code=d.delMatch,next=pickleState(),group=code in next.scores;
+  if(!group&&!next.finals[code])return;
+  const label=group?pickleMatchLabel(code):pickleFinalLabels[code];
+  const warn=group?'':' Các vòng sau phụ thuộc vào kết quả này sẽ trống theo.';
+  if(!await confirmDialog(`Xóa kết quả ${label}?${warn}`,'Xóa'))return;
+  if(group)next.scores[code]='';else next.finals[code]={score:'',winner:null};
+  return inlineDelete(btn,()=>postBracket(next))}});

@@ -1,4 +1,4 @@
-import { allianceData, sportData, standings, validateResult, validateDraws, validateBracket, validateMedals, parseRuleDoc, validateRules, RULE_KEYS, parseSchedule, validateSchedule, safeEqual, signSession, verifySession } from './domain.mjs';
+import { allianceData, sportData, standings, validateResult, validateDraws, validatePickleball, validateMedals, parseRuleDoc, validateRules, RULE_KEYS, parseSchedule, validateSchedule, safeEqual, signSession, verifySession } from './domain.mjs';
 const security={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; frame-src https://www.google.com; connect-src 'self'; base-uri 'none'; form-action 'self'"};
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{...security,'Content-Type':'application/json; charset=utf-8'}})}
 function cookie(request,name){const raw=request.headers.get('Cookie');if(!raw)return '';for(const part of raw.split(';')){const t=part.trim();if(t.startsWith(name+'='))return t.slice(name.length+1)}return ''}
@@ -128,10 +128,10 @@ if(path.startsWith('/api/')){
   if(!await isAdmin(request,env))return json({error:'Vui lòng đăng nhập.'},401);
   if(request.headers.get('Origin')!==url.origin||!request.headers.get('Content-Type')?.startsWith('application/json'))return json({error:'Yêu cầu không hợp lệ.'},403);
   if(Number(request.headers.get('Content-Length'))>8000)return json({error:'Nội dung quá dài.'},413);const raw=await request.text();if(raw.length>8000)return json({error:'Nội dung quá dài.'},413);
-  let b;try{b=validateBracket(JSON.parse(raw))}catch(e){return json({error:e.message},400)}
+  let b;try{b=validatePickleball(JSON.parse(raw))}catch(e){return json({error:e.message},400)}
   // brackets.sport_id references sports(id); seed first or a fresh database rejects the insert.
   await seed(env);
-  await env.DB.prepare('INSERT INTO brackets (sport_id,data,updated_at) VALUES (?,?,?) ON CONFLICT(sport_id) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at').bind(b.sport_id,JSON.stringify({teams:b.teams,matches:b.matches}),new Date().toISOString()).run();
+  await env.DB.prepare('INSERT INTO brackets (sport_id,data,updated_at) VALUES (?,?,?) ON CONFLICT(sport_id) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at').bind(b.sport_id,JSON.stringify({scores:b.scores,groups:b.groups,finals:b.finals}),new Date().toISOString()).run();
   return json({ok:true,sport_id:b.sport_id});
  }
  return json({error:'Không tìm thấy thao tác.'},404);
