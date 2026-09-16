@@ -1,4 +1,4 @@
-import {test} from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync} from 'node:sqlite';import fs from 'node:fs';import worker from '../server/worker.mjs';import {standings,allianceData,validateResult,validateDraws,validatePickleball,pickleScoreCodes,pickleFinalCodes,validateMedals,parseRuleDoc,validateRules,parseSchedule,validateSchedule,RULE_KEYS,safeEqual,signSession} from '../server/domain.mjs';
+import {test} from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync} from 'node:sqlite';import fs from 'node:fs';import worker from '../server/worker.mjs';import {standings,allianceData,validateResult,validateDraws,validatePickleball,pickleScoreCodes,pickleFinalCodes,pickleAlliances,validateMedals,parseRuleDoc,validateRules,parseSchedule,validateSchedule,RULE_KEYS,safeEqual,signSession} from '../server/domain.mjs';
 function database(){const db=new DatabaseSync(':memory:');for(const f of fs.readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(fs.readFileSync('drizzle/'+f,'utf8'));const binding={prepare(sql){return {args:[],bind(...args){this.args=args;return this},async first(){return db.prepare(sql).get(...this.args)||null},async run(){const r=db.prepare(sql).run(...this.args);return {success:true,meta:{changes:r.changes}}},async all(){return {results:db.prepare(sql).all(...this.args)}}}},async batch(statements){db.exec('BEGIN');try{const r=[];for(const s of statements){try{r.push(await s.all())}catch{r.push(await s.run())}}db.exec('COMMIT');return r}catch(e){db.exec('ROLLBACK');throw e}}};return {db,binding}}
 const origin='https://scoreboard.test';const SECRET='test-session-secret';
 const creds={ADMIN_USER:'bateco',ADMIN_PASS:'123',SESSION_SECRET:SECRET};
@@ -86,7 +86,8 @@ test('Missing deploy config is reported as a server problem, not a wrong passwor
   assert.doesNotMatch((await r.json()).error,/mật khẩu không đúng/)}
  // Correct credentials with full config still work, so the guard did not over-trigger.
  assert.equal((await call({DB:binding,...creds},'/api/admin/login','POST',{user:'bateco',pass:'123'})).status,200);db.close()});
-const pickle=(overrides={})=>({sport_id:3,scores:Object.fromEntries(pickleScoreCodes.map(c=>[c,''])),groups:{A:{first:null,second:null},B:{first:null,second:null}},finals:Object.fromEntries(pickleFinalCodes.map(c=>[c,{score:'',winner:null}])),...overrides});
+const emptyPairs=()=>({A:[0,1,2,3,4].map(()=>['','','']),B:[0,1,2,3,4].map(()=>['','',''])});
+const pickle=(overrides={})=>({sport_id:3,pairs:emptyPairs(),scores:Object.fromEntries(pickleScoreCodes.map(c=>[c,''])),groups:{A:{first:null,second:null},B:{first:null,second:null}},finals:Object.fromEntries(pickleFinalCodes.map(c=>[c,{score:'',winner:null}])),...overrides});
 test('Pickleball validation enforces 20 group scores, the exact 4 final codes and a valid winner',()=>{
  assert.equal(pickleScoreCodes.length,20);
  assert.throws(()=>validatePickleball(pickle({sport_id:6})));
@@ -116,6 +117,26 @@ test('Pickleball validation rejects a group whose first and second are the same 
  const ok=validatePickleball(pickle({groups:{A:{first:2,second:3},B:{first:null,second:null}}}));
  assert.deepEqual(ok.groups.A,{first:2,second:3});
  assert.deepEqual(ok.groups.B,{first:null,second:null})});
+test('Pickleball validation keeps 05 pairs per group and accepts replacing only one member',()=>{
+ assert.throws(()=>validatePickleball(pickle({pairs:{A:emptyPairs().A}})));
+ assert.throws(()=>validatePickleball(pickle({pairs:{A:emptyPairs().A.slice(0,4),B:emptyPairs().B}})));
+ assert.throws(()=>validatePickleball(pickle({pairs:{A:[...emptyPairs().A,['','','']],B:emptyPairs().B}})));
+ const twoCells={...emptyPairs()};twoCells.A=[['a','b'],...emptyPairs().A.slice(1)];
+ assert.throws(()=>validatePickleball(pickle({pairs:twoCells})));
+ const tooLong={...emptyPairs()};tooLong.A=[['x'.repeat(61),'b',''],...emptyPairs().A.slice(1)];
+ assert.throws(()=>validatePickleball(pickle({pairs:tooLong})));
+ const badTeam={...emptyPairs()};badTeam.A=[['a','b','XX'],...emptyPairs().A.slice(1)];
+ assert.throws(()=>validatePickleball(pickle({pairs:badTeam})));
+ const notString={...emptyPairs()};notString.A=[[1,'b',''],...emptyPairs().A.slice(1)];
+ assert.throws(()=>validatePickleball(pickle({pairs:notString})));
+ const onlyFirst={...emptyPairs()};onlyFirst.A=[[' Dự Bị ','',''],...emptyPairs().A.slice(1)];
+ const ok=validatePickleball(pickle({pairs:onlyFirst}));
+ assert.deepEqual(ok.pairs.A[0],['Dự Bị','',''],'thay mot thanh vien, nguoi con lai giu ten mac dinh');
+ for(const t of pickleAlliances)assert.equal(validatePickleball(pickle({pairs:{...emptyPairs(),A:[['a','b',t],...emptyPairs().A.slice(1)]}})).pairs.A[0][2],t,'nhan lien minh hop le phai duoc giu lai trong tai lieu luu');
+ const keep=validatePickleball(pickle({pairs:{...emptyPairs(),A:[['x'.repeat(60),'b',''],...emptyPairs().A.slice(1)]}}));
+ assert.equal(keep.pairs.A[0][0].length,60,'dung 60 ky tu la bien hop le, khong duoc chan');
+ const bare={...pickle()};delete bare.pairs;
+ assert.throws(()=>validatePickleball(bare),'thieu han truong pairs phai bi tu choi')});
 test('Pickleball route requires admin and keeps exactly one row per sport',async()=>{const {db,binding}=database();const env={DB:binding,...creds};
  assert.equal((await call(env,'/api/admin/bracket','POST',pickle())).status,401);
  assert.equal((await call(env,'/api/admin/bracket','POST',pickle(),{Cookie:'admin=not-a-token'})).status,401);

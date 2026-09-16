@@ -123,31 +123,47 @@ entryDialog.addEventListener('cancel',e=>{if(entryBusy)e.preventDefault()});
 entryDialog.addEventListener('click',e=>{if(entryBusy||e.target!==entryDialog)return;const r=entryDialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)entryDialog.close()});
 entryDialog.addEventListener('close',()=>{document.body.style.overflow='';entryBody.innerHTML='';if(entryTrigger?.isConnected)entryTrigger.focus()});
 
-const pickleSeatOptions=(g,selected)=>['<option value="">Chưa xác định</option>',...pickleGroups[g].map(([name],i)=>`<option value="${i}"${selected===i?' selected':''}>${entryEsc(name)}</option>`)].join('');
+const picklePairsForSave=d=>Object.fromEntries(['A','B'].map(g=>[g,d.pairs[g].map((row,i)=>row.map((v,k)=>v.trim()===pickleGroups[g][i][k]?'':v.trim()))]));
+const pickleSeatOptions=(d,g,selected)=>['<option value="">Chưa xác định</option>',...pickleGroups[g].map((row,i)=>`<option value="${i}"${selected===i?' selected':''}>${entryEsc(pickleTeam(d,g,i))}</option>`)].join('');
 function renderPickleForm(){entryTitle.textContent='Nhập vòng bảng Pickleball';
  const state=pickleState();
  entryBody.innerHTML=`<p class="muted">Lưu sẽ thay thế toàn bộ tỉ số và kết quả vòng bảng của Pickleball. Hai đôi vào mỗi trận chung kết được suy ra từ Nhất/Nhì bảng và đội thắng bán kết, không nhập tay.</p><div id="bracket-form"></div><div class="actions"><button class="button orange" type="button" id="bracket-save">Lưu vòng bảng</button></div><p id="entry-status" role="status"></p>`;
  const host=entryBody.querySelector('#bracket-form'),status=entryBody.querySelector('#entry-status');
  const draw=()=>{const sides=pickleSides(state);
-  host.innerHTML='<h3>Tỉ số vòng bảng</h3>'
+  host.innerHTML=''
+   +'<h3>Tên các đôi</h3>'
+   +['A','B'].map(g=>`<div class="admin-record"><div class="record-details"><h4>Bảng ${g}</h4>${pickleGroups[g].map((base,i)=>{const p=picklePair(state,g,i);
+    return `<div class="pickle-name-row"><label>Đôi ${i+1} · thành viên 1<input data-pair="${g}.${i}.0" maxlength="60" autocomplete="off" value="${entryEsc(p[0])}"></label><label>Thành viên 2<input data-pair="${g}.${i}.1" maxlength="60" autocomplete="off" value="${entryEsc(p[1])}"></label><label>Liên minh<select data-pair="${g}.${i}.2">${pickleAlliances.map(t=>`<option value="${t}"${p[2]===t?' selected':''}>${t}</option>`).join('')}</select></label></div>`}).join('')}</div></div>`).join('')
+   +'<div class="actions"><button class="button" type="button" id="pickle-names-reset">Khôi phục tên mặc định</button></div>'
+   +'<h3>Tỉ số vòng bảng</h3>'
    +pickleRounds.map((round,r)=>`<div class="admin-record"><div class="record-details"><h4>Lượt ${r+1}</h4>${round.map(([g,i,j],c)=>{const code=`R${r+1}C${c+1}`;
-    return `<label>Sân ${c+1} · ${entryEsc(pickleGroups[g][i][0])} vs ${entryEsc(pickleGroups[g][j][0])}<input data-score="${code}" maxlength="40" autocomplete="off" placeholder="ví dụ 11-7" value="${entryEsc(state.scores[code])}"></label>`}).join('')}</div></div>`).join('')
+    return `<label><span data-vs="${code}">Sân ${c+1} · ${entryEsc(pickleTeam(state,g,i))} vs ${entryEsc(pickleTeam(state,g,j))}</span><input data-score="${code}" maxlength="40" autocomplete="off" placeholder="ví dụ 11-7" value="${entryEsc(state.scores[code])}"></label>`}).join('')}</div></div>`).join('')
    +'<h3>Nhất và Nhì mỗi bảng</h3>'
-   +['A','B'].map(g=>`<div class="admin-record"><div class="record-details"><h4>Bảng ${g}</h4><label>Nhất bảng<select data-seat="${g}.first">${pickleSeatOptions(g,state.groups[g].first)}</select></label><label>Nhì bảng<select data-seat="${g}.second">${pickleSeatOptions(g,state.groups[g].second)}</select></label></div></div>`).join('')
+   +['A','B'].map(g=>`<div class="admin-record"><div class="record-details"><h4>Bảng ${g}</h4><label>Nhất bảng<select data-seat="${g}.first">${pickleSeatOptions(state,g,state.groups[g].first)}</select></label><label>Nhì bảng<select data-seat="${g}.second">${pickleSeatOptions(state,g,state.groups[g].second)}</select></label></div></div>`).join('')
    +'<h3>Vòng chung kết</h3>'
    +pickleFinalCodes.map(code=>{const m=state.finals[code],pair=sides[code],names=pickleFinalSlots[code];
     return `<div class="admin-record"><div class="record-details"><h4>${entryEsc(pickleFinalLabels[code])}</h4><label>Tỉ số<input data-score="${code}" maxlength="40" autocomplete="off" placeholder="ví dụ 11-9" value="${entryEsc(m.score)}"></label><label>Đội thắng<select data-winner="${code}"><option value=""${m.winner?'':' selected'}>Chưa đấu</option><option value="1"${m.winner===1?' selected':''}>${entryEsc(pair[0]||names[0])}</option><option value="2"${m.winner===2?' selected':''}>${entryEsc(pair[1]||names[1])}</option></select></label></div></div>`}).join('');
+  const refreshNames=()=>{const sides=pickleSides(state);
+   host.querySelectorAll('[data-vs]').forEach(el=>{const code=el.dataset.vs,r=+code[1]-1,c=+code[3]-1,[g,i,j]=pickleRounds[r][c];
+    el.textContent=`Sân ${c+1} · ${pickleTeam(state,g,i)} vs ${pickleTeam(state,g,j)}`});
+   host.querySelectorAll('[data-seat]').forEach(sel=>{const g=sel.dataset.seat.split('.')[0];
+    for(const opt of sel.options)if(opt.value!=='')opt.textContent=pickleTeam(state,g,+opt.value)});
+   host.querySelectorAll('[data-winner]').forEach(sel=>{const pair=sides[sel.dataset.winner],names=pickleFinalSlots[sel.dataset.winner];
+    for(const opt of sel.options)if(opt.value!=='')opt.textContent=pair[+opt.value-1]||names[+opt.value-1]})};
+  host.querySelectorAll('[data-pair]').forEach(el=>{const apply=()=>{const [g,i,k]=el.dataset.pair.split('.');state.pairs[g][+i][+k]=el.value;refreshNames()};
+   el.oninput=apply;el.onchange=apply});
   host.querySelectorAll('[data-score]').forEach(inp=>inp.oninput=()=>{const code=inp.dataset.score;
    if(code in state.scores)state.scores[code]=inp.value;else state.finals[code].score=inp.value});
   host.querySelectorAll('[data-seat]').forEach(sel=>sel.onchange=()=>{const [g,key]=sel.dataset.seat.split('.');
    state.groups[g][key]=sel.value===''?null:Number(sel.value);draw()});
-  host.querySelectorAll('[data-winner]').forEach(sel=>sel.onchange=()=>{state.finals[sel.dataset.winner].winner=sel.value?Number(sel.value):null;draw()})};
+  host.querySelectorAll('[data-winner]').forEach(sel=>sel.onchange=()=>{state.finals[sel.dataset.winner].winner=sel.value?Number(sel.value):null;draw()});
+  host.querySelector('#pickle-names-reset').onclick=()=>{for(const g of ['A','B'])state.pairs[g]=pickleGroups[g].map(()=>['','','']);draw()}};
  draw();
  entryBody.querySelector('#bracket-save').onclick=async()=>{if(entryBusy)return;
   for(const g of ['A','B'])if(state.groups[g].first!==null&&state.groups[g].first===state.groups[g].second){status.textContent=`Bảng ${g}: Nhất bảng và Nhì bảng không thể là cùng một đôi.`;return}
   for(const g of ['A','B'])if(state.groups[g].first===null&&state.groups[g].second!==null){status.textContent=`Bảng ${g}: chọn Nhì bảng thì phải chọn cả Nhất bảng.`;return}
   entryLock(true);status.textContent='Đang lưu…';
-  try{await entryApi('/api/admin/bracket',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sport_id:3,scores:state.scores,groups:state.groups,finals:state.finals})});await sync(true);entryLock(false);
+  try{await entryApi('/api/admin/bracket',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sport_id:3,pairs:picklePairsForSave(state),scores:state.scores,groups:state.groups,finals:state.finals})});await sync(true);entryLock(false);
    Object.assign(state,pickleState());draw();status.textContent='Đã lưu vòng bảng. Trang đã cập nhật.'}
   catch(err){entryLock(false);status.textContent=err.name==='TimeoutError'?'Chưa xác nhận được. Bấm lưu lại để kiểm tra.':err.message}}}
 
@@ -172,7 +188,7 @@ document.querySelector('#entry-logout').onclick=async()=>{if(entryBusy)return;
 
 // Xóa inline trên bảng công khai. Dùng uỷ quyền sự kiện vì live.js vẽ lại bảng mỗi 5 giây;
 // gắn trực tiếp vào từng nút sẽ mất sau lần vẽ kế tiếp.
-const postBracket=d=>entryApi('/api/admin/bracket',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sport_id:3,scores:d.scores,groups:d.groups,finals:d.finals})});
+const postBracket=d=>entryApi('/api/admin/bracket',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sport_id:3,pairs:picklePairsForSave(d),scores:d.scores,groups:d.groups,finals:d.finals})});
 async function inlineDelete(btn,run){btn.disabled=true;
  try{await run();await sync(true)}
  catch(err){await refreshAdminSession();await confirmDialog(err.name==='TimeoutError'?'Chưa xác nhận được. Tải lại trang rồi kiểm tra trước khi xóa lại.':err.message,'Đã hiểu',false)}
@@ -192,7 +208,7 @@ document.addEventListener('click',async e=>{
   return inlineDelete(btn,()=>entryApi('/api/admin/draws',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sport_id:sport+1,rows})}))}
  if(d.delMatch){const code=d.delMatch,next=pickleState(),group=code in next.scores;
   if(!group&&!next.finals[code])return;
-  const label=group?pickleMatchLabel(code):pickleFinalLabels[code];
+  const label=group?pickleMatchLabel(next,code):pickleFinalLabels[code];
   const warn=group?'':' Các vòng sau phụ thuộc vào kết quả này sẽ trống theo.';
   if(!await confirmDialog(`Xóa kết quả ${label}?${warn}`,'Xóa'))return;
   if(group)next.scores[code]='';else next.finals[code]={score:'',winner:null};

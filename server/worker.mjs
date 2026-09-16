@@ -131,7 +131,7 @@ if(path.startsWith('/api/')){
   let b;try{b=validatePickleball(JSON.parse(raw))}catch(e){return json({error:e.message},400)}
   // brackets.sport_id references sports(id); seed first or a fresh database rejects the insert.
   await seed(env);
-  await env.DB.prepare('INSERT INTO brackets (sport_id,data,updated_at) VALUES (?,?,?) ON CONFLICT(sport_id) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at').bind(b.sport_id,JSON.stringify({scores:b.scores,groups:b.groups,finals:b.finals}),new Date().toISOString()).run();
+  await env.DB.prepare('INSERT INTO brackets (sport_id,data,updated_at) VALUES (?,?,?) ON CONFLICT(sport_id) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at').bind(b.sport_id,JSON.stringify({pairs:b.pairs,scores:b.scores,groups:b.groups,finals:b.finals}),new Date().toISOString()).run();
   return json({ok:true,sport_id:b.sport_id});
  }
  return json({error:'Không tìm thấy thao tác.'},404);

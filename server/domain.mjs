@@ -42,12 +42,22 @@ export async function verifySession(secret,token,nowMs){if(!secret||typeof token
 export function validateDraws(body){if(!body||typeof body!=='object'||Array.isArray(body))throw Error('Dữ liệu không hợp lệ.');if(!Number.isInteger(body.sport_id)||body.sport_id<1||body.sport_id>5)throw Error('Vui lòng chọn môn thi đấu.');if(!Array.isArray(body.rows))throw Error('Danh sách bảng đấu không hợp lệ.');if(body.rows.length>60)throw Error('Bảng đấu tối đa 60 dòng.');const rows=[];for(const row of body.rows){if(!Array.isArray(row)||row.length!==4)throw Error('Mỗi dòng bảng đấu cần đúng 4 ô.');const cells=row.map(c=>{if(typeof c!=='string')throw Error('Nội dung bảng đấu không hợp lệ.');const v=c.trim();if(v.length>200)throw Error('Mỗi ô bảng đấu tối đa 200 ký tự.');return v});if(cells.some(c=>c))rows.push(cells)}return {sport_id:body.sport_id,rows}}
 export const pickleScoreCodes=Array.from({length:5},(_,r)=>Array.from({length:4},(_,c)=>`R${r+1}C${c+1}`)).flat();
 export const pickleFinalCodes=['SF1','SF2','GOLD','BRONZE'];
+export const pickleAlliances=['TP','BP','CP'];
 export function validatePickleball(body){if(!body||typeof body!=='object'||Array.isArray(body))throw Error('Dữ liệu không hợp lệ.');
  if(!Number.isInteger(body.sport_id)||body.sport_id<1||body.sport_id>5)throw Error('Vui lòng chọn môn thi đấu.');
  const readScore=(v,label)=>{if(typeof v!=='string')throw Error(`${label}: tỉ số không hợp lệ.`);const s=v.trim();if(s.length>40)throw Error(`${label}: tỉ số tối đa 40 ký tự.`);return s};
  const src=body.scores;if(!src||typeof src!=='object'||Array.isArray(src))throw Error('Danh sách tỉ số vòng bảng không hợp lệ.');
  const scoreKeys=Object.keys(src);if(scoreKeys.length!==pickleScoreCodes.length||pickleScoreCodes.some(c=>!scoreKeys.includes(c)))throw Error('Danh sách tỉ số vòng bảng cần đúng 20 trận.');
  const scores={};for(const code of pickleScoreCodes)scores[code]=readScore(src[code],'Trận '+code);
+ const src1=body.pairs;if(!src1||typeof src1!=='object'||Array.isArray(src1))throw Error('Danh sách tên các đôi không hợp lệ.');
+ const pairKeys=Object.keys(src1);if(pairKeys.length!==2||!pairKeys.includes('A')||!pairKeys.includes('B'))throw Error('Tên các đôi cần đúng hai bảng A và B.');
+ const pairs={};for(const name of ['A','B']){const list=src1[name];
+  if(!Array.isArray(list)||list.length!==5)throw Error(`Bảng ${name}: cần đúng 05 đôi.`);
+  pairs[name]=list.map((row,i)=>{if(!Array.isArray(row)||row.length!==3)throw Error(`Bảng ${name} đôi ${i+1}: cần đúng tên hai thành viên và nhãn liên minh.`);
+   const [a,b,team]=row.map(v=>{if(typeof v!=='string')throw Error(`Bảng ${name} đôi ${i+1}: nội dung không hợp lệ.`);return v.trim()});
+   for(const v of [a,b])if(v.length>60)throw Error(`Bảng ${name} đôi ${i+1}: mỗi tên thành viên tối đa 60 ký tự.`);
+   if(team&&!pickleAlliances.includes(team))throw Error(`Bảng ${name} đôi ${i+1}: nhãn liên minh không hợp lệ.`);
+   return [a,b,team]})}
  const src2=body.groups;if(!src2||typeof src2!=='object'||Array.isArray(src2))throw Error('Kết quả xếp hạng hai bảng không hợp lệ.');
  const groupKeys=Object.keys(src2);if(groupKeys.length!==2||!groupKeys.includes('A')||!groupKeys.includes('B'))throw Error('Kết quả xếp hạng cần đúng hai bảng A và B.');
  const groups={};for(const name of ['A','B']){const row=src2[name];
@@ -63,4 +73,4 @@ export function validatePickleball(body){if(!body||typeof body!=='object'||Array
   if(!m||typeof m!=='object'||Array.isArray(m))throw Error(`Trận ${code}: kết quả không hợp lệ.`);
   if(m.winner!==null&&m.winner!==1&&m.winner!==2)throw Error(`Trận ${code}: đội thắng không hợp lệ.`);
   finals[code]={score:readScore(m.score,'Trận '+code),winner:m.winner}}
- return {sport_id:body.sport_id,scores,groups,finals}}
+ return {sport_id:body.sport_id,pairs,scores,groups,finals}}

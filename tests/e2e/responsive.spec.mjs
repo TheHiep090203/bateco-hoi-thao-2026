@@ -40,7 +40,9 @@ const TEAMS = [
 ];
 const SCORE_CODES = [];
 for (let r = 1; r <= 5; r++) for (let c = 1; c <= 4; c++) SCORE_CODES.push(`R${r}C${c}`);
+const EMPTY_PAIRS = { A: [0,1,2,3,4].map(() => ['','','']), B: [0,1,2,3,4].map(() => ['','','']) };
 const PICKLE_DATA = {
+  pairs: EMPTY_PAIRS,
   scores: Object.fromEntries(SCORE_CODES.map((c, i) => [c, i % 2 ? '' : '11–7'])),
   groups: { A: { first: 0, second: 2 }, B: { first: 3, second: 1 } },
   finals: {
