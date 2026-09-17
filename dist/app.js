@@ -1,12 +1,5 @@
 const alliances=[{name:'TIÊN PHONG',members:'CN1 + Cung ứng Đấu thầu + VP + Khối KHCTY',gold:0,silver:0,bronze:0},{name:'BỨT PHÁ',members:'CN2 + BTC Quốc An + HO (Nhân sự + Kế toán + KSNB + Tài chính)',gold:0,silver:0,bronze:0},{name:'CHINH PHỤC',members:'CN3 + BESIP + CNTT + Distributor + BTC Lai Châu + MJChem',gold:0,silver:0,bronze:0}];
 document.querySelector('#content').innerHTML=`<section class="section" id="lien-minh"><div class="section-head"><div><h2>03 Liên minh</h2></div></div><div class="grid3">${alliances.map((a,i)=>`<article class="alliance"><span class="team-emblem" aria-hidden="true">${["➤","ϟ","★"][i]}</span><small>LIÊN MINH</small><h3>${a.name}</h3></article>`).join('')}</div></section>`;
-const heroOpenAt=new Date('2026-09-18T08:00:00+07:00');
-const countUnits=['Ngày','Giờ','Phút','Giây'];
-function tick(){const delta=Math.max(0,heroOpenAt-Date.now()),t=Math.floor(delta/1000);
- const parts=[Math.floor(t/86400),Math.floor(t/3600)%24,Math.floor(t/60)%60,t%60],showDays=parts[0]>0;
- document.querySelector('#countdown').innerHTML=parts.map((v,i)=>i===0&&!showDays?'':`<div><b>${String(v).padStart(2,'0')}</b>${countUnits[i]}</div>`).join('');
- document.querySelector('#count-label').textContent=!delta?'ĐANG DIỄN RA':showDays?'ĐẾM NGƯỢC ĐẾN NGÀY HỘI THAO':'HÔM NAY · KHAI MẠC LÚC 08:00'}
-tick();setInterval(tick,1000);
 const sports=[{name:'Đoàn kết',sport:'Kéo co 10 vs 10',icon:'↔',time:'08:15 – 08:40'},{name:'Tốc độ',sport:'Điền kinh',icon:'⚡',time:'08:45 – 10:00'},{name:'Phối hợp',sport:'Pickleball',icon:'◎',time:'10:00 – 12:00'},{name:'Chiến thuật',sport:'AOE 4 vs 4',icon:'⌨',time:'10:00 – 12:00'},{name:'Rực lửa',sport:'Giải bóng đá Nam – BATECO CUP',icon:'⚽',time:'14:00 – 17:30'}];
 const schedule=[['07:30 – 08:00','Tập trung'],['08:00 – 08:10','Khai mạc'],['08:10 – 08:15','Warm-up'],['08:15 – 08:40','Kéo co'],['08:40 – 08:45','Công bố kết quả'],['08:45 – 10:00','Điền kinh'],['10:00 – 12:00','Pickleball & Esport'],['14:00 – 17:30','Bóng đá Nam – BATECO CUP','BATECO CUP'],['18:00','Tiệc kết đoàn']];
 const documents=['Luật Kéo co','Luật Điền kinh','Luật Pickleball','Luật Esport','Luật Bóng đá','Timeline sự kiện'];
@@ -54,9 +47,60 @@ const scheduleRows=()=>scheduleOverride??schedule;
 const scheduleRawText=()=>scheduleRows().map(r=>r.join(' | ')).join('\n');
 function renderSchedule(){document.querySelector('#lich-trinh .timeline').innerHTML=scheduleRows().map(([t,n,tag])=>`<li><span class="timeline-dot"></span><time>${officialText(t)}</time><strong>${officialText(n)}</strong>${tag?`<span class="pill">${officialText(tag)}</span>`:''}</li>`).join('')}
 async function loadSchedule(){try{const r=await fetch('/api/schedule',{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!r.ok)return;
+  heroTrackClock(r);
   const d=await r.json();scheduleOverride=Array.isArray(d.schedule?.rows)&&d.schedule.rows.length?d.schedule.rows:null}catch{}}
 async function refreshSchedule(){const before=JSON.stringify(scheduleOverride);await loadSchedule();if(JSON.stringify(scheduleOverride)!==before)renderSchedule()}
 renderSchedule();
+const heroTrackClock=r=>{const h=r.headers.get('Date');if(!h)return;const t=Date.parse(h);if(Number.isNaN(t))return;const off=t-Date.now();heroSkew=Math.abs(off)>60000?off:0};
+const heroOpenAt=new Date('2026-09-18T08:00:00+07:00');
+const heroDayStart=new Date('2026-09-18T00:00:00+07:00');
+const heroVenue='Sân Bóng Biên Phòng Cầu Diễn';
+const countUnits=['Ngày','Giờ','Phút','Giây'];
+let heroSkew=0,heroBand='',heroLastCount='',heroLastNote='';
+const heroNow=()=>Date.now()+heroSkew;
+const heroAt=m=>heroDayStart.getTime()+m*60000;
+const pad2=v=>String(v).padStart(2,'0');
+const fmtHm=m=>pad2(Math.floor(m/60))+':'+pad2(m%60);
+const heroMinutes=t=>[...String(t).matchAll(/(\d{1,2}):(\d{2})/g)].map(x=>+x[1]*60+ +x[2]).filter(v=>v<1440);
+const heroTimeline=()=>{const out=[];
+ for(const row of scheduleRows()){const m=heroMinutes(row[0]);if(m.length)out.push({start:m[0],end:m.length>1?m[1]:null,name:row[1]||''})}
+ out.sort((a,b)=>a.start-b.start);
+ out.forEach((r,i)=>{if(r.end===null||r.end<=r.start)r.end=out[i+1]?out[i+1].start:r.start+120});
+ return out};
+const heroStandings=()=>{try{return liveData&&liveData.standings||null}catch{return null}};
+const heroState=()=>{const now=heroNow(),day=heroTimeline();
+ if(now<heroOpenAt.getTime())return {key:now>=heroDayStart.getTime()?'today':'before',day};
+ const last=day.length?heroAt(day[day.length-1].end)+7200000:heroOpenAt.getTime()+43200000;
+ if(now>=last)return {key:'done',day};
+ return {key:'live',day,cur:day.find(r=>now>=heroAt(r.start)&&now<heroAt(r.end))||null,next:day.find(r=>heroAt(r.start)>now)||null}};
+const heroWrite=(html,note)=>{const el=document.querySelector('#countdown');
+ if(html!==heroLastCount){el.innerHTML=html;heroLastCount=html}
+ if(note!==heroLastNote){const n=document.querySelector('#hero-note');n.textContent=note;n.hidden=!note;heroLastNote=note}};
+const heroSay=t=>{const band=t<=0?'live':t>3600?'h':t>600?'10':t>60?'1':'0';
+ if(band===heroBand)return;heroBand=band;
+ document.querySelector('#hero-say').textContent=t>0?`Còn ${Math.floor(t/3600)} giờ ${Math.floor(t/60)%60} phút đến lễ khai mạc`:'Hội thao đã bắt đầu';};
+const heroDoneHtml=()=>{const s=heroStandings();
+ if(!s||!s.length||!s.some(a=>a.gold+a.silver+a.bronze))return '<strong class="hero-now">Cảm ơn toàn thể CBNV</strong>';
+ return s.slice(0,3).map(a=>`<div class="hero-rank"><b>${a.rank}</b><span>${officialText(a.name)}</span><em>${a.gold+a.silver+a.bronze}</em></div>`).join('')};
+function tick(){const st=heroState(),now=heroNow(),label=document.querySelector('#count-label'),count=document.querySelector('#countdown');
+ count.classList.toggle('is-status',st.key==='live'||st.key==='done');
+ if(st.key==='before'||st.key==='today'){
+  const t=Math.max(0,Math.floor((heroOpenAt.getTime()-now)/1000));
+  const parts=[Math.floor(t/86400),Math.floor(t/3600)%24,Math.floor(t/60)%60,t%60],showDays=parts[0]>0;
+  label.textContent=showDays?'ĐẾM NGƯỢC ĐẾN NGÀY HỘI THAO':'HÔM NAY · KHAI MẠC LÚC '+fmtHm(480);label.classList.remove('is-live');
+  const first=st.day[0];
+  heroWrite(parts.map((v,i)=>i===0&&!showDays?'':`<div><b>${pad2(v)}</b>${countUnits[i]}</div>`).join(''),
+   st.key==='today'&&first?`${first.name} từ ${fmtHm(first.start)} · ${heroVenue}`:'');
+  heroSay(t);return}
+ heroSay(0);
+ if(st.key==='live'){label.textContent='ĐANG DIỄN RA';label.classList.add('is-live');
+  const mins=st.next?Math.round((heroAt(st.next.start)-now)/60000):0;
+  heroWrite(`<strong class="hero-now">${officialText(st.cur?st.cur.name:'Đang chuyển nội dung')}</strong>`,
+   st.next?`Tiếp theo · ${fmtHm(st.next.start)} ${st.next.name}`+(mins>0&&mins<=90?` (còn ${mins} phút)`:''):'');
+  return}
+ label.textContent='HỘI THAO 2026 ĐÃ KHÉP LẠI';label.classList.remove('is-live');
+ heroWrite(heroDoneHtml(),'Xem bảng tổng sắp huy chương bên dưới');}
+tick();setInterval(tick,1000);
 async function loadRules(){try{const r=await fetch('/api/rules',{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!r.ok)return;
   const d=await r.json();if(!Array.isArray(d.rules))return;const next={};for(const row of d.rules)next[row.key]=row;ruleOverrides=next}catch{}}
 async function refreshRules(){const before=JSON.stringify(ruleOverrides);await loadRules();if(JSON.stringify(ruleOverrides)!==before)refreshRulesPanel()}
