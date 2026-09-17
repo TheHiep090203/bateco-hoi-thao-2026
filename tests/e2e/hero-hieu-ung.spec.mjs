@@ -63,3 +63,15 @@ test('giảm chuyển động thì chữ số vẫn đổi nhưng không cuộn'
   expect(await styleOf(page, '#countdown .roll-col', 'transitionDuration'),
     'giữ hiệu ứng cuộn khi người dùng đã xin giảm chuyển động là sai').toBe('0s');
 });
+
+test('trên điện thoại, trạng thái sự kiện phải nằm trong màn hình đầu tiên', async ({ page }) => {
+  for (const [w, h, name] of [[360, 800, 'Android phổ thông'], [390, 844, 'iPhone 14'], [414, 896, 'iPhone Plus']]){
+    await page.setViewportSize({ width: w, height: h });
+    await page.goto('/');
+    await page.waitForSelector('#countdown .roll-d');
+    const bottom = await page.evaluate(() => Math.round(document.querySelector('#countdown').getBoundingClientRect().bottom));
+    expect(bottom,
+      `${name}: sáng ngày hội thao khách mời mở web là để xem còn bao lâu, bắt cuộn mới thấy thì hỏng mục đích`)
+      .toBeLessThanOrEqual(h);
+  }
+});

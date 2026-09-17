@@ -233,6 +233,8 @@ test('lưu form chỉ ghi phần admin thật sự sửa, nút khôi phục xoá
     'gõ đúng tên mặc định phải lưu thành rỗng, chỉ tên khác mặc định mới được ghi đè')
     .toEqual(['', 'Dự Bị Thu Hà', '']);
   expect(sent[0].pairs.B[4], 'đôi không đụng tới phải hoàn toàn rỗng').toEqual(['', '', '']);
+  await expect(page.locator('#entry-status'),
+    'phải đợi lần lưu trước mở khoá form, nếu không cú bấm Lưu kế tiếp bị bỏ qua').toContainText('Đã lưu');
 
   await page.locator('#bracket-form [data-pair="A.0.1"]').fill('Người Khác Hẳn');
   await page.locator('#pickle-names-reset').click();
