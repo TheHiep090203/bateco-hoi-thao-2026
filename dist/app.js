@@ -1,6 +1,12 @@
 const alliances=[{name:'TIÊN PHONG',members:'CN1 + Cung ứng Đấu thầu + VP + Khối KHCTY',gold:0,silver:0,bronze:0},{name:'BỨT PHÁ',members:'CN2 + BTC Quốc An + HO (Nhân sự + Kế toán + KSNB + Tài chính)',gold:0,silver:0,bronze:0},{name:'CHINH PHỤC',members:'CN3 + BESIP + CNTT + Distributor + BTC Lai Châu + MJChem',gold:0,silver:0,bronze:0}];
 document.querySelector('#content').innerHTML=`<section class="section" id="lien-minh"><div class="section-head"><div><h2>03 Liên minh</h2></div></div><div class="grid3">${alliances.map((a,i)=>`<article class="alliance"><span class="team-emblem" aria-hidden="true">${["➤","ϟ","★"][i]}</span><small>LIÊN MINH</small><h3>${a.name}</h3></article>`).join('')}</div></section>`;
-function tick(){const delta=Math.max(0,new Date('2026-09-18T00:00:00+07:00')-Date.now());const t=Math.floor(delta/1000);document.querySelector('#countdown').innerHTML=[Math.floor(t/86400),Math.floor(t/3600)%24,Math.floor(t/60)%60,t%60].map((v,i)=>`<div><b>${String(v).padStart(2,'0')}</b>${['Ngày','Giờ','Phút','Giây'][i]}</div>`).join('');if(!delta)document.querySelector('#count-label').textContent='ĐÃ ĐẾN NGÀY HỘI THAO';}tick();setInterval(tick,1000);
+const heroOpenAt=new Date('2026-09-18T08:00:00+07:00');
+const countUnits=['Ngày','Giờ','Phút','Giây'];
+function tick(){const delta=Math.max(0,heroOpenAt-Date.now()),t=Math.floor(delta/1000);
+ const parts=[Math.floor(t/86400),Math.floor(t/3600)%24,Math.floor(t/60)%60,t%60],showDays=parts[0]>0;
+ document.querySelector('#countdown').innerHTML=parts.map((v,i)=>i===0&&!showDays?'':`<div><b>${String(v).padStart(2,'0')}</b>${countUnits[i]}</div>`).join('');
+ document.querySelector('#count-label').textContent=!delta?'ĐANG DIỄN RA':showDays?'ĐẾM NGƯỢC ĐẾN NGÀY HỘI THAO':'HÔM NAY · KHAI MẠC LÚC 08:00'}
+tick();setInterval(tick,1000);
 const sports=[{name:'Đoàn kết',sport:'Kéo co 10 vs 10',icon:'↔',time:'08:15 – 08:40'},{name:'Tốc độ',sport:'Điền kinh',icon:'⚡',time:'08:45 – 10:00'},{name:'Phối hợp',sport:'Pickleball',icon:'◎',time:'10:00 – 12:00'},{name:'Chiến thuật',sport:'AOE 4 vs 4',icon:'⌨',time:'10:00 – 12:00'},{name:'Rực lửa',sport:'Giải bóng đá Nam – BATECO CUP',icon:'⚽',time:'14:00 – 17:30'}];
 const schedule=[['07:30 – 08:00','Tập trung'],['08:00 – 08:10','Khai mạc'],['08:10 – 08:15','Warm-up'],['08:15 – 08:40','Kéo co'],['08:40 – 08:45','Công bố kết quả'],['08:45 – 10:00','Điền kinh'],['10:00 – 12:00','Pickleball & Esport'],['14:00 – 17:30','Bóng đá Nam – BATECO CUP','BATECO CUP'],['18:00','Tiệc kết đoàn']];
 const documents=['Luật Kéo co','Luật Điền kinh','Luật Pickleball','Luật Esport','Luật Bóng đá','Timeline sự kiện'];
