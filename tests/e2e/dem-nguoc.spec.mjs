@@ -29,15 +29,15 @@ test('rạng sáng ngày hội thao thì đếm tới giờ khai mạc chứ kh�
     'nhãn phải nói rõ còn bao lâu tới khai mạc, không phải chỉ báo đã tới ngày').toHaveText(`HÔM NAY · KHAI MẠC LÚC ${OPEN_AT}`);
   await expect(page.locator('#countdown > div'), 'dưới 24 giờ thì bỏ hẳn ô Ngày thay vì để 00 chết').toHaveCount(3);
   await expect(page.locator('#countdown'), 'ô Ngày phải biến mất hoàn toàn').not.toContainText('Ngày');
-  const hours = await page.locator('#countdown > div').first().locator('b').innerText();
+  const hours = await page.locator('#countdown > div').first().locator('.roll-d').evaluateAll(els => els.map(e => e.dataset.d).join(''));
   expect(Number(hours), 'từ 01:40 tới 08:00 phải còn 6 giờ lẻ').toBe(6);
   await expect(page.locator('#hero-note'), 'rạng sáng phải chỉ rõ giờ tập trung và địa điểm').toContainText('07:30');
 });
 
 test('đồng hồ không được đứng im ở bốn số không trong suốt đêm trước hội thao', async ({ page }) => {
   await atClock(page, '2026-09-18T03:00:00+07:00');
-  const shown = await page.locator('#countdown').innerText();
-  expect(shown.replace(/[^0-9]/g, ''), 'toàn số không nghĩa là đồng hồ nhắm sai mốc').not.toMatch(/^0+$/);
+  const shown = await page.locator('#countdown .roll-d').evaluateAll(els => els.map(e => e.dataset.d).join(''));
+  expect(shown, 'toàn số không nghĩa là đồng hồ nhắm sai mốc').not.toMatch(/^0+$/);
 });
 
 test('trong giờ thi đấu thì hero hiện nội dung đang diễn ra và nội dung kế tiếp', async ({ page }) => {

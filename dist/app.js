@@ -73,9 +73,15 @@ const heroState=()=>{const now=heroNow(),day=heroTimeline();
  const last=day.length?heroAt(day[day.length-1].end)+7200000:heroOpenAt.getTime()+43200000;
  if(now>=last)return {key:'done',day};
  return {key:'live',day,cur:day.find(r=>now>=heroAt(r.start)&&now<heroAt(r.end))||null,next:day.find(r=>heroAt(r.start)>now)||null}};
-const heroWrite=(html,note)=>{const el=document.querySelector('#countdown');
+const heroRollShell=n=>'<b class="roll" aria-hidden="true">'+Array.from({length:n},()=>'<span class="roll-d"><span class="roll-col">'+Array.from({length:10},(_,d)=>`<span>${d}</span>`).join('')+'</span></span>').join('')+'</b>';
+const heroCountShell=labels=>labels.map(l=>`<div>${heroRollShell(2)}${l}</div>`).join('');
+const heroSetRoll=parts=>{const cols=document.querySelectorAll('#countdown .roll-d');let k=0;
+ for(const v of parts)for(const ch of pad2(v)){const col=cols[k++];if(!col)return;
+  if(col.dataset.d!==ch){col.dataset.d=ch;col.style.setProperty('--d',ch)}}};
+const heroNote=note=>{if(note===heroLastNote)return;const n=document.querySelector('#hero-note');n.textContent=note;n.hidden=!note;heroLastNote=note};
+const heroStatus=(html,note)=>{const el=document.querySelector('#countdown');
  if(html!==heroLastCount){el.innerHTML=html;heroLastCount=html}
- if(note!==heroLastNote){const n=document.querySelector('#hero-note');n.textContent=note;n.hidden=!note;heroLastNote=note}};
+ heroNote(note)};
 const heroSay=t=>{const band=t<=0?'live':t>3600?'h':t>600?'10':t>60?'1':'0';
  if(band===heroBand)return;heroBand=band;
  document.querySelector('#hero-say').textContent=t>0?`Còn ${Math.floor(t/3600)} giờ ${Math.floor(t/60)%60} phút đến lễ khai mạc`:'Hội thao đã bắt đầu';};
@@ -89,17 +95,20 @@ function tick(){const st=heroState(),now=heroNow(),label=document.querySelector(
   const parts=[Math.floor(t/86400),Math.floor(t/3600)%24,Math.floor(t/60)%60,t%60],showDays=parts[0]>0;
   label.textContent=showDays?'ĐẾM NGƯỢC ĐẾN NGÀY HỘI THAO':'HÔM NAY · KHAI MẠC LÚC '+fmtHm(480);label.classList.remove('is-live');
   const first=st.day[0];
-  heroWrite(parts.map((v,i)=>i===0&&!showDays?'':`<div><b>${pad2(v)}</b>${countUnits[i]}</div>`).join(''),
-   st.key==='today'&&first?`${first.name} từ ${fmtHm(first.start)} · ${heroVenue}`:'');
+  const units=showDays?countUnits:countUnits.slice(1),shell=units.join(',');
+  const el=document.querySelector('#countdown');
+  if(heroLastCount!==shell){el.innerHTML=heroCountShell(units);heroLastCount=shell}
+  heroSetRoll(showDays?parts:parts.slice(1));
+  heroNote(st.key==='today'&&first?`${first.name} từ ${fmtHm(first.start)} · ${heroVenue}`:'');
   heroSay(t);return}
  heroSay(0);
  if(st.key==='live'){label.textContent='ĐANG DIỄN RA';label.classList.add('is-live');
   const mins=st.next?Math.round((heroAt(st.next.start)-now)/60000):0;
-  heroWrite(`<strong class="hero-now">${officialText(st.cur?st.cur.name:'Đang chuyển nội dung')}</strong>`,
+  heroStatus(`<strong class="hero-now">${officialText(st.cur?st.cur.name:'Đang chuyển nội dung')}</strong>`,
    st.next?`Tiếp theo · ${fmtHm(st.next.start)} ${st.next.name}`+(mins>0&&mins<=90?` (còn ${mins} phút)`:''):'');
   return}
  label.textContent='HỘI THAO 2026 ĐÃ KHÉP LẠI';label.classList.remove('is-live');
- heroWrite(heroDoneHtml(),'Xem bảng tổng sắp huy chương bên dưới');}
+ heroStatus(heroDoneHtml(),'Xem bảng tổng sắp huy chương bên dưới');}
 tick();setInterval(tick,1000);
 async function loadRules(){try{const r=await fetch('/api/rules',{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!r.ok)return;
   const d=await r.json();if(!Array.isArray(d.rules))return;const next={};for(const row of d.rules)next[row.key]=row;ruleOverrides=next}catch{}}

@@ -31,6 +31,23 @@
 #entry-dialog .pickle-name-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 92px;gap:0 14px;align-items:end}
 #entry-dialog .pickle-name-row label{margin-bottom:10px}
 @media(max-width:650px){#entry-dialog .pickle-name-row{grid-template-columns:1fr}}
+.countdown{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)}
+.countdown.is-status{display:block}
+.countdown b.roll{display:flex;justify-content:center;line-height:1;margin-bottom:5px}
+.roll-d{display:block;overflow:hidden;height:1em;line-height:1}
+.roll-col{display:block;transform:translateY(calc(var(--d,0) * -1em));transition:transform .55s cubic-bezier(.22,.75,.2,1)}
+.roll-col>span{display:block;height:1em;line-height:1}
+@media(prefers-reduced-motion:reduce){.roll-col{transition:none}}
+@keyframes heroRise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes heroFade{from{opacity:0}to{opacity:1}}
+.hero .eyebrow,.hero h1,.hero .tagline,.hero .actions,.hero-bottom{animation:heroRise .62s cubic-bezier(.22,.75,.2,1) backwards}
+.hero .eyebrow{animation-delay:.06s}
+.hero h1{animation-delay:.15s}
+.hero .tagline{animation-delay:.26s}
+.hero .actions{animation-delay:.36s}
+.hero-bottom{animation-delay:.5s}
+.hero .event-card{animation:heroFade .7s ease-out .22s backwards}
+@media(prefers-reduced-motion:reduce){.hero .eyebrow,.hero h1,.hero .tagline,.hero .actions,.hero-bottom,.hero .event-card{animation:none}}
 .visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 #count-label{display:flex;align-items:center;gap:9px}
 .countdown.is-status~#hero-note,#hero-note{margin:14px 0 0;font-size:13px;line-height:1.55;color:#b7cdd6}
