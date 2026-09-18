@@ -7,10 +7,17 @@ function call(env,path,method='GET',body,headers={}){return worker.fetch(new Req
 const result=(overrides={})=>({id:'00000000-0000-4000-8000-000000000001',sport_id:1,event:'Nội dung kiểm thử',participants:'Đội kiểm thử',score:'2–1',revision:0,...overrides});
 const alliance=(id,gold=0,silver=0,bronze=0)=>({...allianceData.find(a=>a.id===id),gold,silver,bronze});
 const medalBody=(overrides={})=>({alliance_id:1,gold:0,silver:0,bronze:0,prev:{gold:0,silver:0,bronze:0},...overrides});
-test('Ranking uses total medals first, then gold, silver, bronze',()=>{const rows=standings([alliance(1,1,0,0),alliance(2,1,2,0),alliance(3,0,0,2)]);assert.deepEqual(rows.map(r=>r.id),[2,3,1]);
- const heavy=standings([alliance(1,1,0,0),alliance(2,0,5,5),alliance(3)]);assert.deepEqual(heavy.map(r=>r.id),[2,1,3]);assert.deepEqual(heavy.map(r=>r.rank),[1,2,3]);
- const tieBreak=standings([alliance(1,1,0,0),alliance(2,0,1,0),alliance(3)]);assert.deepEqual(tieBreak.map(r=>r.id),[1,2,3]);assert.deepEqual(tieBreak.map(r=>r.rank),[1,2,3]);
- assert.deepEqual(standings([alliance(1),alliance(2),alliance(3)]).map(r=>r.rank),[1,1,1]);
+test('Ranking uses gold first, then silver, then bronze, and ignores the medal total',()=>{
+ const fewerButGolden=standings([alliance(1,1,0,0),alliance(2,0,5,5),alliance(3)]);
+ assert.deepEqual(fewerButGolden.map(r=>r.id),[1,2,3],'mot HCV phai xep tren muoi huy chuong khong co HCV nao');
+ assert.deepEqual(fewerButGolden.map(r=>r.rank),[1,2,3]);
+ const sameGold=standings([alliance(1,1,0,0),alliance(2,1,2,0),alliance(3,0,0,2)]);
+ assert.deepEqual(sameGold.map(r=>r.id),[2,1,3],'bang HCV thi xet tiep HCB');
+ const sameGoldAndSilver=standings([alliance(1,2,1,0),alliance(2,2,1,4)]);
+ assert.deepEqual(sameGoldAndSilver.map(r=>r.id),[2,1],'bang ca HCV lan HCB thi xet tiep HCD');
+ const allEqual=standings([alliance(1),alliance(2),alliance(3)]);
+ assert.deepEqual(allEqual.map(r=>r.rank),[1,1,1]);
+ assert.ok(allEqual.every(r=>r.tied),'bang ca ba loai thi dong hang');
  assert.equal(standings([alliance(1),alliance(2,0,10,0),alliance(3)]).find(r=>r.id===2).silver,10)});
 
 

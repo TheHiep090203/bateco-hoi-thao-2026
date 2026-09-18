@@ -12,7 +12,7 @@ function credentials(){
   }catch{ return null }
 }
 
-test('bảng tổng sắp xếp theo tổng huy chương và render đúng thứ tự API', async ({ page }) => {
+test('bảng tổng sắp xếp theo số HCV và render đúng thứ tự API', async ({ page }) => {
   test.skip(!credentials(), 'Cần .env.local có ADMIN_USER và ADMIN_PASS');
   await page.goto('/');
   const origin = new URL(page.url()).origin;
@@ -37,16 +37,17 @@ test('bảng tổng sắp xếp theo tổng huy chương và render đúng thứ
 
     for (let i = 1; i < standings.length; i++) {
       const prev = standings[i-1], cur = standings[i];
-      expect(total(prev), `dòng ${i} có tổng lớn hơn dòng ${i-1}`).toBeGreaterThanOrEqual(total(cur));
-      if (total(prev) === total(cur)) {
-        expect(prev.gold, `bằng tổng nhưng HCV không phá hoà đúng ở dòng ${i}`).toBeGreaterThanOrEqual(cur.gold);
-        if (prev.gold === cur.gold) expect(prev.silver).toBeGreaterThanOrEqual(cur.silver);
+      expect(prev.gold, `dòng ${i} có HCV nhiều hơn dòng ${i-1}`).toBeGreaterThanOrEqual(cur.gold);
+      if (prev.gold === cur.gold) {
+        expect(prev.silver, `bằng HCV nhưng HCB không phá hoà đúng ở dòng ${i}`).toBeGreaterThanOrEqual(cur.silver);
+        if (prev.silver === cur.silver) expect(prev.bronze).toBeGreaterThanOrEqual(cur.bronze);
       }
     }
 
-    expect(standings[0].id, 'liên minh 10 huy chương phải đứng trên liên minh có HCV duy nhất').toBe(2);
+    expect(standings[0].id, 'liên minh có HCV duy nhất phải đứng trên liên minh 10 huy chương nhưng không HCV').toBe(1);
     expect(standings[0].rank).toBe(1);
-    expect(total(standings[0])).toBe(Math.max(...standings.map(total)));
+    expect(total(standings[0]), 'đội dẫn đầu theo HCV có thể có tổng huy chương thấp hơn đội xếp sau')
+      .toBeLessThan(Math.max(...standings.map(total)));
 
     await page.reload();
     await expect(page.locator('#huy-chuong tbody tr')).toHaveCount(standings.length, { timeout: 15000 });
@@ -54,6 +55,9 @@ test('bảng tổng sắp xếp theo tổng huy chương và render đúng thứ
       .map(th => th.textContent.replace('LIÊN MINH ', '').trim()));
     expect(dom, 'bảng phải thật sự đổi chỗ dòng, không chỉ gán lại số hạng').toEqual(standings.map(a => a.name));
   } finally {
-    for (const [id, gold, silver, bronze] of before) await setMedals(id, gold, silver, bronze);
+    for (const [id, gold, silver, bronze] of before) {
+      const restored = await setMedals(id, gold, silver, bronze);
+      expect(restored.status(), 'lệnh khôi phục huy chương phải thành công, nếu không lần chạy sau sẽ lệch dữ liệu').toBe(200);
+    }
   }
 });
