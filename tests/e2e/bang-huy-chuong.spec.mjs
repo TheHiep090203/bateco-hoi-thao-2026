@@ -16,6 +16,11 @@ const LEAD_TP = [
   standing(TEAM.BP, 'BỨT PHÁ', 2, 5, 0, 2),
   standing(TEAM.CP, 'CHINH PHỤC', 2, 1, 2, 3),
 ];
+const GOLD_BEATS_TOTAL = [
+  standing(TEAM.TP, 'TIÊN PHONG', 3, 0, 3, 1),
+  standing(TEAM.BP, 'BỨT PHÁ', 2, 6, 0, 2),
+  standing(TEAM.CP, 'CHINH PHỤC', 2, 1, 3, 3),
+];
 const ALL_TIED = [
   { ...standing(TEAM.BP, 'BỨT PHÁ', 1, 1, 1, 1), tied: true },
   { ...standing(TEAM.CP, 'CHINH PHỤC', 1, 1, 1, 1), tied: true },
@@ -36,15 +41,36 @@ async function rowsReady(page){
   await expect(page.locator('#huy-chuong tbody tr[data-team]')).toHaveCount(3, { timeout: 15000 });
 }
 
-test('bảng nêu rõ tổng huy chương, vốn là tiêu chí xếp hạng số một', async ({ page }) => {
+test('bảng nêu rõ số HCV, vốn là tiêu chí xếp hạng số một', async ({ page }) => {
   await serve(page, () => LEAD_BP);
   await page.goto('/');
   await rowsReady(page);
-  await expect(page.locator('#huy-chuong thead th'), 'thêm cột Tổng thì thead phải có đúng 6 cột').toHaveCount(6);
-  await expect(page.locator('#huy-chuong thead')).toContainText('Tổng');
-  const totals = await page.locator('#huy-chuong td.total').allInnerTexts();
-  expect(totals, 'không hiện tổng thì người xem phải tự cộng mới hiểu vì sao đội này xếp trên đội kia')
-    .toEqual(['7', '5', '5']);
+  await expect(page.locator('#huy-chuong thead th'), 'bảng giữ đủ 6 cột kể cả cột Tổng tham khảo').toHaveCount(6);
+  await expect(page.locator('#huy-chuong .table-note'),
+    'ghi chú phải nói đúng luật đang áp dụng, nếu không người xem hiểu sai cách tính hạng').toContainText('số HCV');
+  await expect(page.locator('#huy-chuong .table-note')).not.toContainText('tổng số huy chương');
+  const golds = await page.locator('#huy-chuong td.lead-metric').allInnerTexts();
+  expect(golds, 'cột HCV là cột quyết định thứ hạng nên phải được nhấn mạnh').toEqual(['2', '2', '2']);
+  const lead = await page.locator('#huy-chuong td.lead-metric').first().evaluate(el => {
+    const c = getComputedStyle(el); return { size: parseFloat(c.fontSize), weight: Number(c.fontWeight) };
+  });
+  const plain = await page.locator('#huy-chuong tbody tr').first().locator('td').nth(1).evaluate(el => {
+    const c = getComputedStyle(el); return { size: parseFloat(c.fontSize), weight: Number(c.fontWeight) };
+  });
+  expect(lead.weight, 'cột HCV phải đậm hơn các cột huy chương còn lại').toBeGreaterThan(plain.weight);
+  expect(lead.size, 'chỉ tăng độ đậm mà để cỡ chữ nhỏ hơn thì cột quyết định lại trông kém quan trọng nhất')
+    .toBeGreaterThan(plain.size);
+});
+
+test('nhiều HCV hơn thì xếp trên, kể cả khi tổng huy chương ít hơn', async ({ page }) => {
+  await serve(page, () => GOLD_BEATS_TOTAL);
+  await page.goto('/');
+  await rowsReady(page);
+  const rows = page.locator('#huy-chuong tbody tr[data-team]');
+  await expect(rows.first(), 'đội 3 HCV phải đứng trên đội 8 huy chương nhưng chỉ 2 HCV').toHaveAttribute('data-team', String(TEAM.TP));
+  await expect(rows.first()).toHaveAttribute('data-rank', '1');
+  const totals = await rows.locator('td').nth(3).allInnerTexts();
+  expect(totals[0], 'đội dẫn đầu theo luật mới có tổng huy chương thấp hơn đội hạng nhì').toBe('6');
 });
 
 test('hạng 1, 2, 3 mang dấu hiệu thị giác riêng chứ không chỉ là con số', async ({ page }) => {
@@ -138,4 +164,14 @@ test('bật giảm chuyển động thì thứ hạng đổi ngay, không trư�
   }));
   await expect(page.locator('#huy-chuong tbody tr').first()).toHaveAttribute('data-team', String(TEAM.TP));
   expect(moved, 'người dùng đã xin giảm chuyển động thì không được cho hàng trượt').toBe(0);
+});
+
+test('mục hỏi đáp mô tả đúng luật xếp hạng đang áp dụng', async ({ page }) => {
+  await serve(page, () => LEAD_BP);
+  await page.goto('/');
+  const faq = page.locator('#faq', { hasText: 'Huy chương được tính' });
+  await expect(faq).toBeVisible();
+  const answer = page.locator('#faq details', { hasText: 'Huy chương được tính' }).locator('p');
+  await expect(answer, 'hỏi đáp mô tả luật cũ sẽ mâu thuẫn với bảng ngay bên trên').toContainText('ưu tiên số HCV');
+  await expect(answer).not.toContainText('ưu tiên tổng số huy chương');
 });

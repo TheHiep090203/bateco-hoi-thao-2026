@@ -64,7 +64,8 @@
 #huy-chuong tbody tr[data-rank="2"] th{border-left-color:#94a8b9}
 #huy-chuong tbody tr[data-rank="3"] th{border-left-color:#ba7e52}
 #huy-chuong tbody td{font-variant-numeric:tabular-nums}
-#huy-chuong td.total{font-size:17px;font-weight:800;color:var(--navy)}
+#huy-chuong tbody td.lead-metric{font-size:26px;font-weight:800;color:#8a6009}
+@media(max-width:650px){#huy-chuong tbody td.lead-metric{font-size:22px}}
 #huy-chuong .rank{display:inline-flex;align-items:center;justify-content:center;min-width:29px;height:29px;border-radius:50%;font-size:15px;font-weight:800;color:#0b2938;background:#e8edf0}
 #huy-chuong tr[data-rank="1"] .rank{background:#e2ad38}
 #huy-chuong tr[data-rank="2"] .rank{background:#cdd8e0}
