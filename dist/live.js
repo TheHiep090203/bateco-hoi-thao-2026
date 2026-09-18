@@ -1,15 +1,42 @@
 let liveData=null,selectedSport=0,inFlight=null;
 const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const liveStatus=document.createElement('p');liveStatus.className='live-status';liveStatus.setAttribute('role','status');liveStatus.textContent='Đang kết nối bảng điểm…';document.querySelector('#ket-qua .section-head').after(liveStatus);
-document.querySelector('#huy-chuong tbody').innerHTML='<tr><td colspan="5" class="live-empty">Đang tải bảng huy chương…</td></tr>';
+const liveStatus=document.createElement('p');liveStatus.className='live-status';liveStatus.textContent='Đang kết nối bảng điểm…';document.querySelector('#ket-qua .section-head').after(liveStatus);
+document.querySelector('#huy-chuong tbody').innerHTML='<tr><td colspan="6" class="live-empty">Đang tải bảng huy chương…</td></tr>';
 document.querySelector('#huy-chuong .section-head>span').textContent='Đang tải dữ liệu';
 function resultTable(i){if(!liveData)return '<p class="live-empty">Đang chờ kết nối dữ liệu kết quả.</p>';const rows=liveData.results.filter(r=>r.sport_id===i+1);return `<div class="table-wrap"><table class="results-table"><thead><tr><th>Trận/Phần thi</th><th>Đội/VĐV</th><th>Kết quả</th>${adminSession?'<th aria-label="Thao tác"></th>':''}</tr></thead><tbody>${rows.length?rows.map(r=>`<tr><th>${safe(r.event)}</th><td>${safe(r.participants)}</td><td>${safe(r.score)}</td>${adminSession?`<td class="row-actions"><button type="button" class="row-delete" data-del-result="${safe(r.id)}">Xóa</button></td>`:''}</tr>`).join(''):`<tr><td colspan="${adminSession?4:3}" class="empty"><strong>Chưa có kết quả thi đấu</strong><p>Kết quả sẽ được cập nhật sau khi thi đấu.</p></td></tr>`}</tbody></table></div>`}
 const previousShowResult=showResult;showResult=function(i){selectedSport=i;previousShowResult(i);document.querySelector('#result-panel').innerHTML=resultTable(i)};showResult(0);
 function renderDraws(){const rows=liveData.draws||[];for(let i=0;i<officialCompetitionData.length;i++)officialCompetitionData[i].rows=rows.filter(d=>d.sport_id===i+1).map(d=>[d.c1,d.c2,d.c3,d.c4]);const storedPickle=(liveData.brackets||[]).find(b=>b.sport_id===3);pickleData=storedPickle?storedPickle.data:null;const active=document.querySelector('#bang-dau [data-draw][aria-selected="true"]');if(active)renderSportPanel('draw',Number(active.dataset.draw))}
-function renderLive(){renderDraws();document.querySelector('#huy-chuong tbody').innerHTML=liveData.standings.map(a=>`<tr><th><span class="team-line team-${a.id-1}"></span>LIÊN MINH ${safe(a.name)}</th><td>${a.gold}</td><td>${a.silver}</td><td>${a.bronze}</td><td><span class="rank">${a.rank}</span>${a.tied?'<small class="tie">Đồng hạng</small>':''}</td></tr>`).join('');document.querySelector('#huy-chuong .section-head>span').textContent=liveData.standings.some(a=>a.gold+a.silver+a.bronze)?'Cập nhật theo tổng huy chương đã nhập':'Chưa có huy chương được cập nhật';document.querySelector('#result-panel').innerHTML=resultTable(selectedSport);if(dialog.open&&lastButton)renderDialogResults(+lastButton.dataset.sport)}
+const medalRows=()=>[...document.querySelectorAll('#huy-chuong tbody tr[data-team]')];
+const medalSnapshot=()=>{const m=new Map();
+ for(const tr of medalRows())m.set(tr.dataset.team,{y:tr.getBoundingClientRect().top,
+  cells:[...tr.querySelectorAll('td')].map(td=>td.textContent)});
+ return m};
+let medalOrder='',medalReady=false;
+const medalSay=rows=>{const order=rows.map(t=>t.dataset.team+':'+t.dataset.rank).join(',');
+ if(order===medalOrder)return;
+ const first=!medalOrder;medalOrder=order;if(first)return;
+ const el=document.querySelector('#huy-chuong-say');
+ if(el)el.textContent='Thứ hạng thay đổi. '+rows.map(t=>'Hạng '+t.dataset.rank+' '+t.querySelector('th').textContent.trim()).join(', ')+'.'};
+const medalAnimate=before=>{try{
+ const rows=medalRows();if(!rows.length)return;
+ if(!medalReady){medalReady=true;medalSay(rows);return}
+ medalSay(rows);
+ if(document.hidden||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+ const hot=[];
+ for(const tr of rows){const b=before.get(tr.dataset.team);if(!b)continue;
+  [...tr.querySelectorAll('td')].forEach((td,i)=>{if(b.cells[i]!==undefined&&b.cells[i]!==td.textContent)hot.push(td)})}
+ for(const tr of rows){const b=before.get(tr.dataset.team);if(!b)continue;
+  const dy=Math.round(b.y-tr.getBoundingClientRect().top);if(!dy)continue;
+  tr.style.willChange='transform';
+  tr.animate([{transform:`translateY(${dy}px)`},{transform:'translateY(0)'}],
+   {duration:420,easing:'cubic-bezier(.22,.75,.2,1)'}).finished.finally(()=>{tr.style.willChange=''})}
+ if(hot.length&&hot.length<=2)for(const td of hot)
+  td.animate([{backgroundColor:'#fdf1cf'},{backgroundColor:'rgba(253,241,207,0)'}],{duration:900,easing:'ease-out'});
+}catch{}};
+function renderLive(){renderDraws();document.querySelector('#huy-chuong tbody').innerHTML=liveData.standings.map(a=>`<tr data-team="${a.id}" data-rank="${a.rank}"><th><span class="team-line team-${a.id-1}"></span>LIÊN MINH ${safe(a.name)}</th><td>${a.gold}</td><td>${a.silver}</td><td>${a.bronze}</td><td class="total">${a.gold+a.silver+a.bronze}</td><td><span class="rank" aria-label="Hạng ${a.rank}">${a.rank}</span>${a.tied?'<small class="tie">Đồng hạng</small>':''}</td></tr>`).join('');document.querySelector('#huy-chuong .section-head>span').textContent=liveData.standings.some(a=>a.gold+a.silver+a.bronze)?'Cập nhật theo tổng huy chương đã nhập':'Chưa có huy chương được cập nhật';document.querySelector('#result-panel').innerHTML=resultTable(selectedSport);if(dialog.open&&lastButton)renderDialogResults(+lastButton.dataset.sport)}
 function renderDialogResults(i){const section=document.querySelector('#sport-detail .detail-list section:last-child');if(section)section.innerHTML='<h3>Kết quả</h3>'+resultTable(i)}
 document.querySelectorAll('[data-sport]').forEach(b=>b.addEventListener('click',()=>renderDialogResults(+b.dataset.sport)));
-async function sync(force){if(inFlight)return force?inFlight.then(()=>sync(true)):inFlight;inFlight=(async()=>{try{const r=await fetch('/api/scoreboard',{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!r.ok)throw Error();const next=await r.json();if(!Array.isArray(next.standings)||!Array.isArray(next.results))throw Error();const changed=JSON.stringify(liveData)!==JSON.stringify(next);liveData=next;if(changed)renderLive();liveStatus.classList.remove('offline');liveStatus.textContent='Đang cập nhật tự động · '+new Intl.DateTimeFormat('vi-VN',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Ho_Chi_Minh'}).format(new Date())}catch{liveStatus.classList.add('offline');liveStatus.textContent=liveData?'Mất kết nối tạm thời · Đang hiển thị dữ liệu gần nhất. Tự động thử lại.':'Chưa kết nối được dữ liệu · Tự động thử lại.';if(!liveData){document.querySelector('#huy-chuong tbody').innerHTML='<tr><td colspan="5" class="live-empty">Chưa tải được bảng huy chương.</td></tr>';document.querySelector('#huy-chuong .section-head>span').textContent='Chưa kết nối dữ liệu'}}finally{inFlight=null}})();return inFlight}
+async function sync(force){if(inFlight)return force?inFlight.then(()=>sync(true)):inFlight;inFlight=(async()=>{try{const r=await fetch('/api/scoreboard',{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!r.ok)throw Error();const next=await r.json();if(!Array.isArray(next.standings)||!Array.isArray(next.results))throw Error();const changed=JSON.stringify(liveData)!==JSON.stringify(next);const before=changed?medalSnapshot():null;liveData=next;if(changed){renderLive();if(before)medalAnimate(before)}liveStatus.classList.remove('offline');liveStatus.textContent='Đang cập nhật tự động · '+new Intl.DateTimeFormat('vi-VN',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Ho_Chi_Minh'}).format(new Date())}catch{liveStatus.classList.add('offline');liveStatus.textContent=liveData?'Mất kết nối tạm thời · Đang hiển thị dữ liệu gần nhất. Tự động thử lại.':'Chưa kết nối được dữ liệu · Tự động thử lại.';if(!liveData){document.querySelector('#huy-chuong tbody').innerHTML='<tr><td colspan="6" class="live-empty">Chưa tải được bảng huy chương.</td></tr>';document.querySelector('#huy-chuong .section-head>span').textContent='Chưa kết nối dữ liệu'}}finally{inFlight=null}})();return inFlight}
 async function refreshAdminSession(){let next=adminSession;
  try{next=(await fetch('/api/admin/session',{cache:'no-store',signal:AbortSignal.timeout(10000)})).ok}catch{}
  // Lỗi mạng giữ nguyên trạng thái cũ: admin đang nhập dở không mất nút vì một lần fetch hỏng.
