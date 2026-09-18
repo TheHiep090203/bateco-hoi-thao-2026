@@ -57,6 +57,19 @@
  .year{padding-bottom:16px}
  .countdown{margin-top:8px}
 }
+#huy-chuong tbody tr{background:#fff}
+#huy-chuong tbody th{border-left:4px solid transparent}
+#huy-chuong tbody tr[data-rank="1"]{background:#fdf8ec}
+#huy-chuong tbody tr[data-rank="1"] th{border-left-color:#e2ad38}
+#huy-chuong tbody tr[data-rank="2"] th{border-left-color:#94a8b9}
+#huy-chuong tbody tr[data-rank="3"] th{border-left-color:#ba7e52}
+#huy-chuong tbody td{font-variant-numeric:tabular-nums}
+#huy-chuong td.total{font-size:17px;font-weight:800;color:var(--navy)}
+#huy-chuong .rank{display:inline-flex;align-items:center;justify-content:center;min-width:29px;height:29px;border-radius:50%;font-size:15px;font-weight:800;color:#0b2938;background:#e8edf0}
+#huy-chuong tr[data-rank="1"] .rank{background:#e2ad38}
+#huy-chuong tr[data-rank="2"] .rank{background:#cdd8e0}
+#huy-chuong tr[data-rank="3"] .rank{background:#e2c0a6}
+#huy-chuong .tie{display:inline-block;margin-left:7px;font-size:11px;font-weight:700;padding:2px 7px;border-radius:99px;background:var(--light);color:var(--muted)}
 .visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 #count-label{display:flex;align-items:center;gap:9px}
 .countdown.is-status~#hero-note,#hero-note{margin:14px 0 0;font-size:13px;line-height:1.55;color:#b7cdd6}

@@ -2,11 +2,23 @@ import { test, expect } from '@playwright/test';
 
 const HERO_PARTS = ['.hero .eyebrow', '.hero h1', '.hero .tagline', '.hero .actions', '.hero-bottom'];
 
+const BEFORE_EVENT = '2026-09-17T09:00:00+07:00';
+
+async function pinClock(page, iso = BEFORE_EVENT){
+  await page.route('**/api/schedule', route => route.fulfill({ status: 200, contentType: 'application/json',
+    headers: { Date: new Date(iso).toUTCString() }, body: JSON.stringify({ schedule: null }) }));
+  const fake = new Date(iso).getTime();
+  await page.addInitScript(`{const F=Date.now;const fake=${fake};const t0=F();const R=Date;
+    globalThis.Date=class extends R{constructor(...a){if(!a.length)super(fake+(F()-t0));else super(...a)}static now(){return fake+(F()-t0)}};
+    Date.now=()=>fake+(F()-t0);}`);
+}
+
 async function styleOf(page, sel, prop){
   return page.evaluate(([s, p]) => getComputedStyle(document.querySelector(s))[p], [sel, prop]);
 }
 
 test('các khối trong hero hiện ra so le chứ không bật lên cùng lúc', async ({ page }) => {
+  await pinClock(page);
   await page.goto('/');
   const delays = [];
   for (const sel of HERO_PARTS){
@@ -23,6 +35,7 @@ test('các khối trong hero hiện ra so le chứ không bật lên cùng lúc'
 
 test('bật giảm chuyển động thì hero tắt hiệu ứng nhưng nội dung vẫn phải đọc được', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await pinClock(page);
   await page.goto('/');
   await page.waitForTimeout(200);
   for (const sel of [...HERO_PARTS, '.hero .event-card']){
@@ -33,6 +46,7 @@ test('bật giảm chuyển động thì hero tắt hiệu ứng nhưng nội du
 });
 
 test('mọi khối hero đều hiện rõ sau khi hiệu ứng chạy xong', async ({ page }) => {
+  await pinClock(page);
   await page.goto('/');
   await page.waitForTimeout(1600);
   for (const sel of [...HERO_PARTS, '.hero .event-card']){
@@ -41,6 +55,7 @@ test('mọi khối hero đều hiện rõ sau khi hiệu ứng chạy xong', asy
 });
 
 test('đồng hồ dùng cột chữ số cuộn và giấu cột đó khỏi trình đọc màn hình', async ({ page }) => {
+  await pinClock(page);
   await page.goto('/');
   await page.waitForSelector('#countdown .roll-d');
   await expect(page.locator('#countdown b').first(),
@@ -58,6 +73,7 @@ test('đồng hồ dùng cột chữ số cuộn và giấu cột đó khỏi tr
 
 test('giảm chuyển động thì chữ số vẫn đổi nhưng không cuộn', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await pinClock(page);
   await page.goto('/');
   await page.waitForSelector('#countdown .roll-col');
   expect(await styleOf(page, '#countdown .roll-col', 'transitionDuration'),
@@ -67,7 +83,8 @@ test('giảm chuyển động thì chữ số vẫn đổi nhưng không cuộn'
 test('trên điện thoại, trạng thái sự kiện phải nằm trong màn hình đầu tiên', async ({ page }) => {
   for (const [w, h, name] of [[360, 800, 'Android phổ thông'], [390, 844, 'iPhone 14'], [414, 896, 'iPhone Plus']]){
     await page.setViewportSize({ width: w, height: h });
-    await page.goto('/');
+    await pinClock(page);
+  await page.goto('/');
     await page.waitForSelector('#countdown .roll-d');
     const bottom = await page.evaluate(() => Math.round(document.querySelector('#countdown').getBoundingClientRect().bottom));
     expect(bottom,
